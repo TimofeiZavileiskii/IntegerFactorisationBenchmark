@@ -1,0 +1,3 @@
+*.o
+benchmark_results.csv
+factorise_integers
