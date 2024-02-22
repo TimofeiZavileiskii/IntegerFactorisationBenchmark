@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <random>
 #include <thread>
+#include <set>
+#include "gmpxx.h"
 #include "PollardsRho.h"
 
 
@@ -15,11 +17,11 @@ void ThreadJobRho(mpz_t& output, mpz_t& to_factor, volatile bool& factored, int 
     mpz_inits(u, v, diff, factor, random_bound, NULL);
     mpz_set(random_bound, to_factor);
     mpz_sub_ui(random_bound, random_bound, 1);
-
     mpz_urandomm(u, random_state, random_bound);
-    mpz_set(u, v);
+    mpz_set(v, u);
 
-    while(!factored){    
+
+    while(!factored){
         mpz_mul(u, u, u);
         mpz_add_ui(u, u, 1);
         mpz_mod(u, u, to_factor);

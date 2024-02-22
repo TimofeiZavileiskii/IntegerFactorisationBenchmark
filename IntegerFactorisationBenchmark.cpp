@@ -49,7 +49,7 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    Ecm(factor, rsa_num, 16);
+    PollardsRho(factor, rsa_num, 16);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;

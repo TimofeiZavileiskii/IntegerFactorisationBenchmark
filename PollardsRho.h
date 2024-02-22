@@ -1,6 +1,7 @@
 #pragma once
 #include "gmp.h"
-
+#include "gmpxx.h"
+#include <set>
 
 void ThreadJobRho(mpz_t& output, mpz_t& to_factor, volatile bool& factored, int seed);
 
