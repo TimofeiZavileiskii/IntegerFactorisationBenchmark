@@ -8,6 +8,7 @@
 #include <random>
 #include <thread>
 
+
 class FactoredException: public std::exception
 {
     public:
@@ -37,14 +38,14 @@ struct Point{
     }
 };
 
-class Curve{
+class CurveClass{
     public:
 
     mpz_class a;
     mpz_class b;
     mpz_class to_factor;
 
-    Curve(mpz_class& a, mpz_class& b, mpz_class& to_factor){
+    CurveClass(mpz_class& a, mpz_class& b, mpz_class& to_factor){
         this->a = a;
         this->b = b;
         this->to_factor = to_factor;
@@ -156,7 +157,7 @@ void EcmJob(mpz_t& output, mpz_t& to_factor, volatile bool& factored, std::vecto
             factored = true;
         }
 
-        Curve curve = Curve(a, b, n);
+        CurveClass curve = CurveClass(a, b, n);
         Point point = Point(x1, y1, false);
         try{
             for(mpz_class& prime : primes){
@@ -183,9 +184,12 @@ void EcmJob(mpz_t& output, mpz_t& to_factor, volatile bool& factored, std::vecto
 
 void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
     double to_factor_d = mpz_get_d(to_factor);
-    to_factor_d = std::pow(to_factor_d, 1.0/3.0);
+    to_factor_d = std::pow(to_factor_d, 1.0/5.0);
     double bound_log = std::log2(to_factor_d);
-    mpz_class B = to_factor_d; 
+    mpz_class B = to_factor_d;
+    std::cout << "Selected bound is ";
+    mpz_out_str(NULL, 10, B.get_mpz_t());
+    std::cout << std::endl;
     std::vector<mpz_class> primes;
     SieveOfEratosthenes(B, primes);
 
