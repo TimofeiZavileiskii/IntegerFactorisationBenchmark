@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -g -Os 
+CFLAGS = -Wall -g0 -Os -pg
 
 all: factorise_integers
 
