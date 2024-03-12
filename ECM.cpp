@@ -9,145 +9,171 @@
 #include <thread>
 
 
-class FactoredException: public std::exception
-{
-    public:
-    mpz_class factor;
-
-    FactoredException(mpz_class factor){
-        this->factor = factor;
-    }
-
-    virtual const char* what() const throw()
-    {
-        return "Integer is factored";
-    }
-};
-
-
 struct Point{
-    public:
-    mpz_class x;
-    mpz_class y;
+    mpz_t x;
+    mpz_t y;
     bool is_inf;
 
-    Point(mpz_class& x, mpz_class& y, bool is_inf){
-        this->x = x;
-        this->y = y;
-        this->is_inf = is_inf;
+    Point(){
+        mpz_inits(x, y, NULL);
+        is_inf = false;
+    }
+
+    ~Point(){
+        mpz_clears(x, y, NULL);
     }
 };
 
-class CurveClass{
+class Curve{
+    private:
+    Point p_copy;
+    mpz_t neg_y, s, to_invert, y2, x_inv;
+    
     public:
+    mpz_t a, b, n;
 
-    mpz_class a;
-    mpz_class b;
-    mpz_class to_factor;
-
-    CurveClass(mpz_class& a, mpz_class& b, mpz_class& to_factor){
-        this->a = a;
-        this->b = b;
-        this->to_factor = to_factor;
+    Curve(){
+        mpz_inits(a, b, n, neg_y, s, to_invert, y2, x_inv, NULL);
     }
 
-    Point AddPoints(Point& p1, Point& p2){
-        if(p1.is_inf){
-            return p2;
-        }
-        if(p2.is_inf){
-            return p1;
+    ~Curve(){
+        mpz_clears(a, b, n, to_invert, y2, x_inv, NULL);
+    }
+
+    void AddPoints(Point& point, Point& to_add, mpz_t factor, volatile bool& is_factored){
+        if(to_add.is_inf)
+            return;
+        
+        if(point.is_inf)
+        {
+            mpz_set(point.x, to_add.x);
+            mpz_set(point.y, to_add.y);
+            return;
         }
 
-        if(p1.x == p2.x && p1.y == (to_factor - p2.y)){
-            p1.is_inf = true;
-            return p1;
+
+        mpz_sub(neg_y, n, to_add.y);
+        bool x_equal = mpz_cmp(point.x, to_add.x) == 0;
+        if(x_equal && (mpz_cmp(point.y, neg_y) == 0))
+        {
+            point.is_inf = true;
+            return;
         }
 
-        mpz_class s = 1;
-        if(p1.x == p2.x){
-            mpz_class to_invert = (2 * p1.y) % to_factor;
-            mpz_class y2;
-            int inverse_found = mpz_invert(y2.get_mpz_t(), to_invert.get_mpz_t(), to_factor.get_mpz_t());
+        mpz_set_ui(to_invert, 1);
+        if(x_equal){
+            mpz_mul_ui(to_invert, point.y, 2);
+            mpz_mod(to_invert, to_invert, n);
+            int inverse_found = mpz_invert(y2, to_invert, n);
             if(inverse_found == 0){
-                mpz_class factor;
-                mpz_gcd(factor.get_mpz_t(), to_factor.get_mpz_t(), to_invert.get_mpz_t());
-                FactoredException e(factor);
-                throw e;
+                mpz_gcd(factor, n, to_invert);
+                is_factored = true;
+                return;
             }
-            s = ((3 * (p1.x * p1.x) + a) * y2) % to_factor;
+            mpz_mul(s, point.x, point.x);
+            mpz_mul_ui(s, s, 3);
+            mpz_add(s, s, a);
+            mpz_mul(s, s, y2);
+            mpz_mod(s, s, n);
         }
         else{
-            mpz_class to_invert = (p2.x - p1.x) % to_factor;
-            mpz_class x_inv;
-            int inverse_found = mpz_invert(x_inv.get_mpz_t(), to_invert.get_mpz_t(), to_factor.get_mpz_t());
+            mpz_sub(to_invert, to_add.x, point.x);
+            mpz_mod(to_invert, to_invert, n);
+            int inverse_found = mpz_invert(x_inv, to_invert, n);
             if(inverse_found == 0){
-                mpz_class factor;
-                mpz_gcd(factor.get_mpz_t(), to_factor.get_mpz_t(), to_invert.get_mpz_t());
-                FactoredException e(factor);
-                throw e;
+                mpz_gcd(factor, n, to_invert);
+                is_factored = true;
+                return;
             }
-            s = (((p2.y - p1.y) % to_factor) * x_inv) % to_factor;
+            mpz_sub(s, to_add.y, point.y);
+            mpz_mod(s, s, n);
+            mpz_mul(s, s, x_inv);
+            mpz_mod(s, s, n);
         }
 
-        mpz_class x3 = (s*s - p1.x - p2.x) % to_factor;
-        mpz_class y3 = (s * (p1.x - x3) - p1.y) % to_factor;
-        return Point(x3, y3, false);
+        //to_invert = x3, new x coordinate
+        mpz_mul(to_invert, s, s);
+        mpz_sub(to_invert, to_invert, point.x);
+        mpz_sub(to_invert, to_invert, to_add.x);
+        mpz_mod(to_invert, to_invert, n);
+
+        //neg_y = y3, new y coordinate
+        mpz_sub(neg_y, point.x, to_invert);
+        mpz_mul(neg_y, neg_y, s);
+        mpz_sub(neg_y, neg_y, point.y);
+        mpz_mod(point.y, neg_y, n);
+        mpz_set(point.x, to_invert);
+        point.is_inf = false;
     }
 
-    Point SubPoints(Point& p1, Point& p2){
-        p2.y = to_factor - p2.y;
-        return AddPoints(p1, p2);
+    void MultPointsRecursive(Point& point_copy, Point& point, mpz_t multiple, mpz_t factor, volatile bool& is_factored){
+        if(mpz_cmp_ui(multiple, 0) == 0 || mpz_cmp_ui(multiple, 1) == 0)
+            return;
+
+        bool is_odd = mpz_odd_p(multiple) != 0;
+        mpz_div_ui(multiple, multiple, 2);
+        
+        MultPointsRecursive(point_copy, point, multiple, factor, is_factored);
+        if(is_factored)
+            return;
+
+        AddPoints(point, point, factor, is_factored);
+        if(is_odd && !is_factored){
+            AddPoints(point, point_copy, factor, is_factored);}
     }
 
-    Point MultPoints(Point p1, mpz_class mult){
-        if(mult == 1)
-            return p1;
-
-        Point product = MultPoints(p1, mult / 2);
-        Point square = AddPoints(product, product);
-        if((mult & 1) == 1)
-            return AddPoints(p1, square);
-        else
-            return square;
+    inline void MultPoints(Point& point, mpz_t multiple, mpz_t factor, volatile bool& is_factored){
+        mpz_set(p_copy.x, point.x);
+        mpz_set(p_copy.y, point.y);
+        
+        MultPointsRecursive(p_copy, point, multiple, factor, is_factored);
     }
 };
 
 
-void EcmJob(mpz_t& output, mpz_t& to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed){
-    double to_factor_d = mpz_get_d(to_factor);
-    to_factor_d = std::pow(to_factor_d, 1.0/3.0);
-    double bound_log = std::log2(to_factor_d);
-    mpz_class B = to_factor_d; 
+inline double log_base(double x, double base) {
+    return log(x) / log(base);
+}
 
+void EcmJob(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, 
+    double bound)
+    {
     mpz_class n = mpz_class(to_factor);
     gmp_randstate_t random_state;
     gmp_randinit_default(random_state);
     gmp_randseed_ui(random_state, starting_seed);
     
+    Curve curve;
+    mpz_set(curve.n, to_factor);
+    mpz_t x_cube, a_x, random_bound, g, pow_disc, b_sqr, disc, f;
+    mpz_inits(x_cube, a_x, random_bound, g, pow_disc, b_sqr, disc, f, NULL);
+
+    Point point = Point();
+    
     while(!factored)
     {
-        mpz_t a_s, x1_s, y1_s, random_bound;
-        mpz_inits(a_s, x1_s, y1_s, random_bound, NULL);
-        mpz_set_ui(random_bound, 50000);
-        mpz_urandomm(a_s, random_state, random_bound);
-        mpz_urandomm(x1_s, random_state, random_bound);
-        mpz_urandomm(y1_s, random_state, random_bound);
-
-        mpz_class a = mpz_class(a_s) % n;
-        mpz_class x1 = mpz_class(x1_s) % n;
-        mpz_class y1 = mpz_class(y1_s) % n;
+        //Find first point on the curve
+        //Randomly select a, x and y
+        mpz_urandomm(curve.a, random_state, to_factor);
+        mpz_urandomm(point.x, random_state, to_factor);
+        mpz_urandomm(point.y, random_state, to_factor);
         
-        mpz_class b = (y1*y1 - x1*x1*x1 - a*x1) % n;
+        //Compute b value for the curve based on the random coordinates
+        mpz_mul(curve.b, point.y, point.y);
+        mpz_mul(x_cube, point.x, point.x);
+        mpz_mul(x_cube, x_cube, point.x);
+        mpz_mul(a_x, point.x, curve.a);
+        mpz_sub(curve.b, curve.b, x_cube);
+        mpz_sub(curve.b, curve.b, a_x);
+        mpz_mod(curve.b, curve.b, to_factor);
 
-        mpz_t g, pow_disc;
-        mpz_inits(g, pow_disc, NULL);
-        mpz_class to_factor_c = mpz_class(to_factor);
-        mpz_powm_ui(pow_disc, a.get_mpz_t(), 3, to_factor);
-        
-        mpz_class pow_disc_c = mpz_class(pow_disc);
-        mpz_class disc = 4 * pow_disc_c + 27 * (b*b);
-        mpz_gcd(g, disc.get_mpz_t(), to_factor);
+        //Check discriminant 
+        mpz_pow_ui(pow_disc, curve.a, 3);
+        mpz_mul(b_sqr, curve.b, curve.b);
+        mpz_mul_ui(b_sqr, b_sqr, 27);
+        mpz_mul_ui(pow_disc, pow_disc, 4);
+        mpz_add(pow_disc, pow_disc, b_sqr);
+        mpz_gcd(g, pow_disc, to_factor);
 
         if(mpz_cmp(g, to_factor) == 0)
             continue;
@@ -155,41 +181,25 @@ void EcmJob(mpz_t& output, mpz_t& to_factor, volatile bool& factored, std::vecto
         if(mpz_cmp_ui(g, 1) > 0){
             mpz_set(output, g);
             factored = true;
+            continue;
         }
+        
+        for(mpz_class& prime : primes){
+            if(factored)
+                break;
 
-        CurveClass curve = CurveClass(a, b, n);
-        Point point = Point(x1, y1, false);
-        try{
-            for(mpz_class& prime : primes){
-                double prime_log;
-                double p_d = prime.get_d();
-                long e = (long)(bound_log/std::log2(p_d));
-                mpz_t f_s;
-                mpz_init(f_s);
-                mpz_pow_ui(f_s, prime.get_mpz_t(), e);
-                mpz_class f = mpz_class(f_s);
-                point = curve.MultPoints(point, f);
-                if(factored){
-                    break;
-                }
-            }
+            long exponent = log_base(bound, prime.get_d());
+            mpz_pow_ui(f, prime.get_mpz_t(), exponent);
+            curve.MultPoints(point, f, output, factored);
         }
-        catch (FactoredException e){
-            mpz_set(output, e.factor.get_mpz_t());
-            factored = true;
-        }
+        
     }
 }
-
 
 void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
     double to_factor_d = mpz_get_d(to_factor);
     to_factor_d = std::pow(to_factor_d, 1.0/5.0);
-    double bound_log = std::log2(to_factor_d);
     mpz_class B = to_factor_d;
-    std::cout << "Selected bound is ";
-    mpz_out_str(NULL, 10, B.get_mpz_t());
-    std::cout << std::endl;
     std::vector<mpz_class> primes;
     SieveOfEratosthenes(B, primes);
 
@@ -197,14 +207,27 @@ void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
 
     if(thread_count == 1){
         long seed = rand();
-        EcmJob(output, to_factor, factored, primes, seed);
+        EcmJob(output, to_factor, factored, primes, seed, B.get_d());
+        /*
+        std::thread worker = std::thread(EcmJob, output, to_factor, std::ref(factored), std::ref(primes), seed, B.get_d());
+        
+        auto start_time = std::chrono::high_resolution_clock::now();        
+        while(!factored){
+            std::chrono::duration<float> passed_time = std::chrono::high_resolution_clock::now() - start_time;
+            if(passed_time.count() > 50){
+                factored = true;
+                mpz_set_ui(output, 1);
+            }
+        }
+
+        worker.join();*/
     }
     else{
         std::vector<std::thread> workers = std::vector<std::thread>(); 
 
         for(int i = 0; i < thread_count; i++){
             long random_seed = rand();
-            workers.emplace_back(std::thread(EcmJob, std::ref(output), std::ref(to_factor), std::ref(factored), std::ref(primes), random_seed));
+            workers.emplace_back(std::thread(EcmJob, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B.get_d()));
         }
         for(std::thread &thread : workers){
             thread.join();

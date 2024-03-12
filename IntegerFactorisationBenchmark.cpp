@@ -49,7 +49,7 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    PollardsRho(factor, rsa_num, 16);
+    Ecm(factor, rsa_num, 8);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
@@ -94,8 +94,11 @@ void factorise_benchmark(){
     }
 
     std::string line;
+    int count = 0;
+    int max_count = 60;
     while(std::getline(benchmark, line))
     {
+
         std::vector<float> times_for_bitsize;
 
         std::stringstream ss(line);
@@ -112,6 +115,10 @@ void factorise_benchmark(){
             mpz_init(rsa_num);
             mpz_set_str(rsa_num, substr.c_str(), 10);
             times_for_bitsize.push_back(benchmark_number(rsa_num));
+            count++;
+            if(count > max_count){
+                break;
+            }
         }
 
         float average = 0;
@@ -124,6 +131,9 @@ void factorise_benchmark(){
         std::cout << "------------------------- Bit Size: " << bit_size << " Average Time: " << average << std::endl;
         std::string results_path = "benchmark_results.csv";
         write_benchmark_result(times_for_bitsize, bit_size, results_path);
+        if(count > max_count){
+            break;
+        }
     }
 }
 
