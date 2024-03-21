@@ -95,10 +95,9 @@ void factorise_benchmark(){
 
     std::string line;
     int count = 0;
-    int max_count = 60;
+    int max_count = 1000;
     while(std::getline(benchmark, line))
     {
-
         std::vector<float> times_for_bitsize;
 
         std::stringstream ss(line);

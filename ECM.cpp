@@ -51,7 +51,6 @@ class Curve{
             return;
         }
 
-
         mpz_sub(neg_y, n, to_add.y);
         bool x_equal = mpz_cmp(point.x, to_add.x) == 0;
         if(x_equal && (mpz_cmp(point.y, neg_y) == 0))
@@ -198,8 +197,10 @@ void EcmJob(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<
 
 void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
     double to_factor_d = mpz_get_d(to_factor);
-    to_factor_d = std::pow(to_factor_d, 1.0/5.0);
-    mpz_class B = to_factor_d;
+    double smallest_factor = sqrt(to_factor_d);
+    double log_smallest_factor = log(smallest_factor);
+    double bound = std::exp(sqrt(2.0)/2.0 * sqrt(log(log_smallest_factor)*log_smallest_factor));
+    mpz_class B = bound;
     std::vector<mpz_class> primes;
     SieveOfEratosthenes(B, primes);
 
