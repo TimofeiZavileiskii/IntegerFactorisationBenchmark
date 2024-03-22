@@ -136,10 +136,10 @@ void factorise_benchmark(){
     }
 }
 
-int main(){
+int main(int argc, char *argv[]){
     std::cout << "Program Start! " << std::endl;
     factorise_benchmark();
     
-    std::cout << "End of program!";
+    std::cout << "End of program!" << std::endl;
     return 0;
 }
