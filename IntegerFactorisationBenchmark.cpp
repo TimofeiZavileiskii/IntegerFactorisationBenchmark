@@ -9,6 +9,8 @@
 #include "PollardsP1.h"
 #include "TrialDivision.h"
 #include "ECM.h"
+#include <stdexcept>
+#include <pari/pari.h>
 
 void manual_input(){
     mpz_t to_factor, divisor, other_divisor, check;
@@ -17,7 +19,7 @@ void manual_input(){
     std::cout << "Enter number to factor:" << std::endl;
     mpz_inp_str(to_factor, NULL, 10);
 
-    PollardsRho(divisor, to_factor, 1);
+    Ecm(divisor, to_factor, 1);
 
     mpz_div(other_divisor, to_factor, divisor);
     mpz_mod(check, to_factor, divisor);
@@ -43,17 +45,25 @@ void manual_input(){
 float benchmark_number(mpz_t& rsa_num){
     mpz_t factor, other_factor;
     mpz_inits(factor, other_factor, NULL);
-
+    mpz_set_ui(factor, -1);
     std::cout << "Number to factor: ";
     mpz_out_str(NULL, 10, rsa_num);
     std::cout << std::endl;
 
+    char *str_n = mpz_get_str(NULL, 10, rsa_num);
+    GEN pari_rsa = gp_read_str(str_n);
+
     auto start_time = std::chrono::high_resolution_clock::now();
-    Ecm(factor, rsa_num, 8);
+    GEN factors = Z_factor(pari_rsa);
     auto end_time = std::chrono::high_resolution_clock::now();
-
+    printf("Factors of %s are:\n", str_n);
+    pari_printf("%Ps\n", factors);
     std::chrono::duration<float> time = end_time - start_time;
-
+    /*
+    if(mpz_cmp_ui(factor, 0) == 0 || mpz_cmp_ui(factor, 1) == 0){
+        std::cout << "Factor = 0 factorisation failed" << std::endl;
+        throw std::logic_error( "Factorisation fail" );
+    }
     mpz_div(other_factor, rsa_num, factor);
     std::cout << "Number factorised: ";
     mpz_out_str(NULL, 10, rsa_num);
@@ -62,8 +72,13 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << " * ";
     mpz_out_str(NULL, 10, other_factor);
     std::cout << std::endl;
-    std::cout << "Time spent: " << time.count() << " s" << std::endl;
+    
 
+    if(mpz_cmp_ui(other_factor, 0) == 0 || mpz_cmp_ui(other_factor, 1) == 0){
+        std::cout << "Other Factor = 0 factorisation failed" << std::endl;
+        throw std::logic_error( "Factorisation fail" );
+    }*/
+    std::cout << "Time spent: " << time.count() << " s" << std::endl;
     return time.count();
 }
 
@@ -86,6 +101,10 @@ void factorise_benchmark(){
     std::vector<int> bit_sizes;
     std::vector<float> times;
     std::string benchmark_name = "rsa_numbers.csv";
+
+    ulong prime_limit = 1<<30;
+
+    pari_init(5000000000, prime_limit);
 
     std::ifstream benchmark(benchmark_name);
     

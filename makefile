@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -Wall -g0 -Os
-INCLUDES = -lgmp 
+CFLAGS = -Wall -g0 -Os -I. -I/usr/local/include
+INCLUDES = -lgmp -lm -L/usr/local/lib -lpari
 
 all: generate_benchmark factorise_integers 
 
