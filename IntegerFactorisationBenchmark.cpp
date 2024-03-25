@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <chrono>
+#include <time.h>
 #include "gmp.h"
 #include "Utils.h"
 #include "PollardsRho.h"
@@ -53,11 +54,15 @@ float benchmark_number(mpz_t& rsa_num){
     char *str_n = mpz_get_str(NULL, 10, rsa_num);
     GEN pari_rsa = gp_read_str(str_n);
 
+    //clock_t start_time = clock();
     auto start_time = std::chrono::high_resolution_clock::now();
     GEN factors = Z_factor(pari_rsa);
+    //clock_t end_time = clock();
     auto end_time = std::chrono::high_resolution_clock::now();
     printf("Factors of %s are:\n", str_n);
     pari_printf("%Ps\n", factors);
+    //clock_t clock_time = end_time - start_time;
+    //float time = (float)clock_time/CLOCKS_PER_SEC;
     std::chrono::duration<float> time = end_time - start_time;
     /*
     if(mpz_cmp_ui(factor, 0) == 0 || mpz_cmp_ui(factor, 1) == 0){
