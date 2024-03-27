@@ -9,6 +9,7 @@
 #include "PollardsP1.h"
 #include "TrialDivision.h"
 #include "ECM.h"
+#include "TrialDivisionCuda.h"
 
 void manual_input(){
     mpz_t to_factor, divisor, other_divisor, check;
@@ -41,20 +42,38 @@ void manual_input(){
 }
 
 float benchmark_number(mpz_t& rsa_num){
-    mpz_t factor, other_factor;
-    mpz_inits(factor, other_factor, NULL);
+    mpz_t factor, other_factor, remainder;
+    mpz_inits(factor, other_factor, remainder, NULL);
 
     std::cout << "Number to factor: ";
     mpz_out_str(NULL, 10, rsa_num);
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    Ecm(factor, rsa_num, 8);
+    TrialDivisionCuda(factor, rsa_num);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
-
+    if(mpz_cmp_ui(factor, 1) == 0 || mpz_cmp_ui(factor, 0) == 0){
+        std::cout << "Factorisation failed for main factor = ";
+        mpz_out_str(NULL, 10, factor);
+        std::cout << "\n";
+        throw std::logic_error("Factorisation failed");
+    }
     mpz_div(other_factor, rsa_num, factor);
+    mpz_mod(remainder, rsa_num, factor);
+    if(mpz_cmp_ui(other_factor, 1) == 0 || mpz_cmp_ui(other_factor, 0) == 0){
+        std::cout << "Factorisation failed for other factor = ";
+        mpz_out_str(NULL, 10, other_factor);
+        std::cout << "\n";
+        throw std::logic_error("Factorisation failed");
+    }
+    if(mpz_cmp_ui(remainder, 0) == 1){
+        std::cout << "Factorisation failed for remainder = \n";
+        mpz_out_str(NULL, 10, remainder);
+        std::cout << "\n";
+        throw std::logic_error("Factorisation failed");
+    }
     std::cout << "Number factorised: ";
     mpz_out_str(NULL, 10, rsa_num);
     std::cout << " = ";

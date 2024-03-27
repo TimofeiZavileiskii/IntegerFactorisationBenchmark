@@ -1,6 +1,7 @@
 CC = g++
 CFLAGS = -Wall -g0 -Os
 INCLUDES = -lgmp 
+GPU_FLAG = -arch=sm_75
 
 all: generate_benchmark factorise_integers 
 
@@ -12,8 +13,8 @@ GenerateBenchmark.o: GenerateBenchmark.cpp
 	$(CC) $(CFLAGS) -c GenerateBenchmark.cpp $(INCLUDES)
 
 
-factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o
-	$(CC) $(CFLAGS) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o $(INCLUDES)
+factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o
+	nvcc $(GPU_FLAG) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o TrialDivisionCuda.o $(INCLUDES)
 
 
 IntegerFactorisationBenchmark.o: IntegerFactorisationBenchmark.cpp PollardsRho.h TrialDivision.h
@@ -34,6 +35,10 @@ ECM.o: ECM.cpp ECM.h Utils.h Utils.o
 
 TrialDivision.o: TrialDivision.h TrialDivision.cpp
 	$(CC) $(CFLAGS) -c TrialDivision.cpp $(INCLUDES)
+
+
+TrialDivisionCuda.o: TrialDivisionCuda.h TrialDivisionCuda.cu
+	nvcc $(GPU_FLAG) -c TrialDivisionCuda.cu
 
 
 Utils.o: Utils.h Utils.cpp
