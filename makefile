@@ -1,7 +1,12 @@
 CC = g++
+<<<<<<< HEAD
 CFLAGS = -Wall -g0 -Os
 INCLUDES = -lgmp 
 GPU_FLAG = -arch=sm_75
+=======
+CFLAGS = -Wall -g0 -Os -I. -I/usr/local/include
+INCLUDES = -lgmp -lm -L/usr/local/lib -lpari
+>>>>>>> master
 
 all: generate_benchmark factorise_integers 
 

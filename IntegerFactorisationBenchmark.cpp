@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <chrono>
+#include <time.h>
 #include "gmp.h"
 #include "Utils.h"
 #include "PollardsRho.h"
@@ -18,7 +19,7 @@ void manual_input(){
     std::cout << "Enter number to factor:" << std::endl;
     mpz_inp_str(to_factor, NULL, 10);
 
-    PollardsRho(divisor, to_factor, 1);
+    Ecm(divisor, to_factor, 1);
 
     mpz_div(other_divisor, to_factor, divisor);
     mpz_mod(check, to_factor, divisor);
@@ -81,8 +82,8 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << " * ";
     mpz_out_str(NULL, 10, other_factor);
     std::cout << std::endl;
-    std::cout << "Time spent: " << time.count() << " s" << std::endl;
 
+    std::cout << "Time spent: " << time.count() << " s" << std::endl;
     return time.count();
 }
 
