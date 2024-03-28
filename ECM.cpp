@@ -209,19 +209,6 @@ void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
     if(thread_count == 1){
         long seed = rand();
         EcmJob(output, to_factor, factored, primes, seed, B.get_d());
-        /*
-        std::thread worker = std::thread(EcmJob, output, to_factor, std::ref(factored), std::ref(primes), seed, B.get_d());
-        
-        auto start_time = std::chrono::high_resolution_clock::now();        
-        while(!factored){
-            std::chrono::duration<float> passed_time = std::chrono::high_resolution_clock::now() - start_time;
-            if(passed_time.count() > 50){
-                factored = true;
-                mpz_set_ui(output, 1);
-            }
-        }
-
-        worker.join();*/
     }
     else{
         std::vector<std::thread> workers = std::vector<std::thread>(); 

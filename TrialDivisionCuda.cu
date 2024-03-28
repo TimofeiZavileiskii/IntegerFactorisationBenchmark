@@ -1,4 +1,3 @@
-#pragma once
 #include "TrialDivisionCuda.h"
 #include <gmp.h>
 #include <iostream>

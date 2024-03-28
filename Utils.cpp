@@ -3,7 +3,7 @@
 #include <iostream>
 #include "gmp.h"
 #include "gmpxx.h"
-
+#include "math.h"
 
 bool inline IndexBitArray(long index, unsigned char* array) {
     unsigned char bit = array[index >> 3];

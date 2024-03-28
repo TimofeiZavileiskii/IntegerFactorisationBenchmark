@@ -35,6 +35,7 @@ mpz_class generate_rsa(int bit_size, gmp_randstate_t state){
     mpz_t lower_bound;
     mpz_inits(p, q, rsa, upper_bound, lower_bound, NULL);
 
+    mpz_set_ui(lower_bound, 2);
     mpz_set_ui(upper_bound, 2);
     mpz_pow_ui(upper_bound, upper_bound, (bit_size+1)/2);
 

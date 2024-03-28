@@ -10,7 +10,6 @@
 #include "PollardsP1.h"
 #include "TrialDivision.h"
 #include "ECM.h"
-#include "TrialDivisionCuda.h"
 
 void manual_input(){
     mpz_t to_factor, divisor, other_divisor, check;
@@ -51,7 +50,7 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    TrialDivisionCuda(factor, rsa_num);
+    PollardsRho(factor, rsa_num, 8);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
