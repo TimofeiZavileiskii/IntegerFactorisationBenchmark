@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <vector>
 #include "gmp.h"
 #include "gmpxx.h"
@@ -11,6 +12,12 @@ void inline SetBitArray(long index, unsigned char* array);
 void inline ZeroBitArray(long index, unsigned char* array);
 
 void SieveOfEratosthenes(mpz_class upperbound, std::vector<mpz_class>& primes);
+
+inline void print_mpz(std::string str, mpz_t n){
+    std::cout << str;
+    mpz_out_str(NULL, 10, n);
+    std::cout << "\n";
+}
 
 struct MontgomeryParams{
     mpz_t mod, n_bar, r_mask, temp;
@@ -47,4 +54,26 @@ inline void MontgomeryReduction(mpz_t a, MontgomeryParams& params){
     if(mpz_cmp(a, params.mod) != -1){
         mpz_sub(a, a, params.mod);
     }
+}
+
+inline void ModularSub(mpz_t c, mpz_t a, mpz_t b, mpz_t mod){
+    mpz_sub(c, a, b);
+    if(mpz_cmp_ui(c, 0) < 0){
+        mpz_add(c, c, mod);
+    }
+}
+
+inline void TransformIn(mpz_t a, MontgomeryParams& params){
+    mpz_mul_2exp(a, a, params.bit_num);
+    mpz_mod(a, a, params.mod);
+}
+
+inline void TransformOut(mpz_t a, MontgomeryParams& params){
+    MontgomeryReduction(a, params);
+}
+
+inline void MontgomeryMul(mpz_t c, mpz_t a, mpz_t b, MontgomeryParams& params){
+    mpz_mul(c, a, b);
+    mpz_mod(c, c, params.mod);
+    //MontgomeryReduction(c, params);
 }

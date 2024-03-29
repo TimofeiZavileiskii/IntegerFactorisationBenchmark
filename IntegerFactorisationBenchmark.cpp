@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <chrono>
+#include <random>
 #include <time.h>
 #include "gmp.h"
 #include "Utils.h"
@@ -50,7 +51,7 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    PollardsRho(factor, rsa_num, 8);
+    Ecm(factor, rsa_num, 1);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
@@ -104,6 +105,9 @@ void write_benchmark_result(std::vector<float>& benchmark_times, int bit_size, s
 void factorise_benchmark(){
     std::vector<int> bit_sizes;
     std::vector<float> times;
+
+    srand(time(NULL));
+
     std::string benchmark_name = "rsa_numbers.csv";
 
     std::ifstream benchmark(benchmark_name);
@@ -111,10 +115,11 @@ void factorise_benchmark(){
     if(!benchmark.is_open()){
         throw std::runtime_error("Benchmark file failed to open");
     }
-
+    
     std::string line;
     int count = 0;
     int max_count = 1000;
+
     while(std::getline(benchmark, line))
     {
         std::vector<float> times_for_bitsize;
