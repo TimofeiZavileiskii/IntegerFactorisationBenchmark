@@ -101,16 +101,29 @@ void write_benchmark_result(std::vector<float>& benchmark_times, int bit_size, s
     benchmark_result.close();
 }
 
+void write_random_seed(unsigned int rseed, std::string& filename){
+    std::fstream benchmark_result;
+    benchmark_result.open(filename, std::fstream::in | std::fstream::out | std::fstream::app);
+    if (!benchmark_result ){
+        benchmark_result.open(filename,  std::fstream::in | std::fstream::out | std::fstream::trunc);
+    } 
+    benchmark_result << "Seed," << rseed << "\n";
+    benchmark_result.close();
+}
+
 
 void factorise_benchmark(){
     std::vector<int> bit_sizes;
     std::vector<float> times;
+    unsigned int rseed = time(NULL);
 
-    srand(time(NULL));
-
+    srand(rseed);
+    
     std::string benchmark_name = "rsa_numbers.csv";
-
+    std::string results_path = "benchmark_results.csv";
     std::ifstream benchmark(benchmark_name);
+
+    write_random_seed(rseed, results_path);
     
     if(!benchmark.is_open()){
         throw std::runtime_error("Benchmark file failed to open");
@@ -152,7 +165,7 @@ void factorise_benchmark(){
         times.push_back(average);
 
         std::cout << "------------------------- Bit Size: " << bit_size << " Average Time: " << average << std::endl;
-        std::string results_path = "benchmark_results.csv";
+        
         write_benchmark_result(times_for_bitsize, bit_size, results_path);
         if(count > max_count){
             break;
