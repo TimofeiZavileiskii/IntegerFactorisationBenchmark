@@ -5,6 +5,8 @@
 #include "gmpxx.h"
 #include <cmath>
 
+# define m_arith 1 //montgomery arithemtic off = 0 on = 1
+
 bool inline IndexBitArray(long index, unsigned char* array);
 
 void inline SetBitArray(long index, unsigned char* array);
@@ -63,9 +65,18 @@ inline void ModularSub(mpz_t c, mpz_t a, mpz_t b, mpz_t mod){
     }
 }
 
+inline void ModularAdd(mpz_t c, mpz_t a, mpz_t b, mpz_t mod){
+    mpz_add(c, a, b);
+    if(mpz_cmp(c, mod) > -1){
+        mpz_sub(c, c, mod);
+    }
+}
+
 inline void TransformIn(mpz_t a, MontgomeryParams& params){
-    mpz_mul_2exp(a, a, params.bit_num);
-    mpz_mod(a, a, params.mod);
+    #if m_arith==1
+        mpz_mul_2exp(a, a, params.bit_num);
+        mpz_mod(a, a, params.mod);
+    #endif
 }
 
 inline void TransformOut(mpz_t a, MontgomeryParams& params){
@@ -74,6 +85,10 @@ inline void TransformOut(mpz_t a, MontgomeryParams& params){
 
 inline void MontgomeryMul(mpz_t c, mpz_t a, mpz_t b, MontgomeryParams& params){
     mpz_mul(c, a, b);
-    mpz_mod(c, c, params.mod);
-    //MontgomeryReduction(c, params);
+    #if m_arith==1
+        MontgomeryReduction(c, params);
+    #endif
+    #if m_arith==0
+        mpz_mod(c, c, params.mod);
+    #endif
 }

@@ -51,7 +51,7 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    Ecm(factor, rsa_num, 1);
+    Ecm(factor, rsa_num, 8);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
@@ -104,7 +104,7 @@ void write_benchmark_result(std::vector<float>& benchmark_times, int bit_size, s
 void write_random_seed(unsigned int rseed, std::string& filename){
     std::fstream benchmark_result;
     benchmark_result.open(filename, std::fstream::in | std::fstream::out | std::fstream::app);
-    if (!benchmark_result ){
+    if (!benchmark_result){
         benchmark_result.open(filename,  std::fstream::in | std::fstream::out | std::fstream::trunc);
     } 
     benchmark_result << "Seed," << rseed << "\n";
