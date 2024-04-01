@@ -3,14 +3,27 @@ CFLAGS = -Wall -g0 -Os
 INCLUDES = -lgmp 
 GPU_FLAG = -arch=sm_75
 
-all: generate_benchmark factorise_integers 
-
-generate_benchmark: GenerateBenchmark.o
-	$(CC) $(CFLAGS) -o generate_benchmark GenerateBenchmark.o $(INCLUDES)
+all: generate_benchmark factorise_integers test
 
 
-GenerateBenchmark.o: GenerateBenchmark.cpp
+generate_benchmark: GenerateBenchmark.o GeneratePrimes.o
+	$(CC) $(CFLAGS) -o generate_benchmark GenerateBenchmark.o GeneratePrimes.o $(INCLUDES)
+
+
+test: Test.o GeneratePrimes.o
+	$(CC) $(CFLAGS) -o test Test.o GeneratePrimes.o $(INCLUDES)
+
+
+Test.o: Test.cpp EllipticCurves.h
+	$(CC) $(CFLAGS) -c Test.cpp $(INCLUDES)
+
+
+GenerateBenchmark.o: GeneratePrimes.o
 	$(CC) $(CFLAGS) -c GenerateBenchmark.cpp $(INCLUDES)
+
+
+GeneratePrimes.o: GeneratePrimes.cpp GeneratePrimes.h
+	$(CC) $(CFLAGS) -c GeneratePrimes.cpp $(INCLUDES)
 
 
 factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o Utils.o

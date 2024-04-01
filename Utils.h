@@ -5,7 +5,7 @@
 #include "gmpxx.h"
 #include <cmath>
 
-# define m_arith 1 //montgomery arithemtic off = 0 on = 1
+# define m_arith 0 //montgomery arithemtic off = 0 on = 1
 
 bool inline IndexBitArray(long index, unsigned char* array);
 
@@ -25,18 +25,18 @@ struct MontgomeryParams{
     mpz_t mod, n_bar, r_mask, temp;
     uint bit_num;
 
-    MontgomeryParams(){
+    inline MontgomeryParams(){
         mpz_inits(mod, n_bar, r_mask, temp, NULL);
     }
 
-    ~MontgomeryParams(){
+    inline ~MontgomeryParams(){
         mpz_clears(mod, n_bar, r_mask, temp, NULL);
     }
 };
 
 inline void MontgomerySetup(mpz_t mod, MontgomeryParams& params){
     mpz_set(params.mod, mod);
-    params.bit_num = (uint)log2(mpz_get_d(params.mod))+1;
+    params.bit_num = (uint)log2(mpz_get_d(params.mod))+2;
     mpz_set_ui(params.r_mask, 1);
     mpz_mul_2exp(params.r_mask, params.r_mask,params. bit_num);
     mpz_invert(params.n_bar, params.r_mask, params.mod);
@@ -80,7 +80,9 @@ inline void TransformIn(mpz_t a, MontgomeryParams& params){
 }
 
 inline void TransformOut(mpz_t a, MontgomeryParams& params){
-    MontgomeryReduction(a, params);
+    #if m_arith==1
+        MontgomeryReduction(a, params);
+    #endif
 }
 
 inline void MontgomeryMul(mpz_t c, mpz_t a, mpz_t b, MontgomeryParams& params){
@@ -91,4 +93,8 @@ inline void MontgomeryMul(mpz_t c, mpz_t a, mpz_t b, MontgomeryParams& params){
     #if m_arith==0
         mpz_mod(c, c, params.mod);
     #endif
+}
+
+inline double log_base(double x, double base) {
+    return log(x) / log(base);
 }
