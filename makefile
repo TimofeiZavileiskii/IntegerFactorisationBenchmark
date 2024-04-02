@@ -14,7 +14,7 @@ test: Test.o GeneratePrimes.o
 	$(CC) $(CFLAGS) -o test Test.o GeneratePrimes.o $(INCLUDES)
 
 
-Test.o: Test.cpp EllipticCurves.h
+Test.o: Test.cpp EllipticCurves.h Utils.h
 	$(CC) $(CFLAGS) -c Test.cpp $(INCLUDES)
 
 

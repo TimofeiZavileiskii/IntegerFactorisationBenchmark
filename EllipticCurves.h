@@ -29,11 +29,11 @@ struct MontgomeryPoint{
         mpz_set(point.x_add_z, x_add_z);
     }
 
-    inline void Reduce(mpz_t mod){
+    inline int Reduce(mpz_t mod){
         mpz_t inv;
         mpz_init(inv);
         
-        mpz_invert(inv, z, mod);
+        int inv_out = mpz_invert(inv, z, mod);
         mpz_mul(z, z, inv);
         mpz_mod(z, z, mod);
 
@@ -41,6 +41,7 @@ struct MontgomeryPoint{
         mpz_mod(x, x, mod);
 
         mpz_clear(inv);
+        return inv_out;
     }
 };
 
@@ -139,14 +140,13 @@ class MontgomeryCurve{
     }
 
     inline void AddPoints(MontgomeryPoint& point, MontgomeryPoint& to_add, MontgomeryPoint& p_min_add){
-        /*
         if((mpz_cmp_ui(point.x, 0) == 0) && (mpz_cmp_ui(point.z, 0) == 0)){
             return;
         }
         if((mpz_cmp_ui(to_add.x, 0) == 0) && (mpz_cmp_ui(to_add.z, 0) == 0)){
             point.Copy(to_add);
             return;
-        }*/
+        }
 
         #define cross_2 sqr1
         MontgomeryMul(cross_1, point.x_sub_z, to_add.x_add_z, params);

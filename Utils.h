@@ -5,7 +5,7 @@
 #include "gmpxx.h"
 #include <cmath>
 
-# define m_arith 0 //montgomery arithemtic off = 0 on = 1
+# define m_arith 1 //montgomery arithemtic off = 0 on = 1
 
 bool inline IndexBitArray(long index, unsigned char* array);
 

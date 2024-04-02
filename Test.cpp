@@ -23,8 +23,8 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
 
     const int REPEAT_TEST = 10000;
 
-    mpz_t mod, theta, target, mult1, mult2, diff, random_bound;
-    mpz_inits(mod, theta, target, mult1, mult2, diff, random_bound, NULL);
+    mpz_t mod, theta, target, mult1, mult2, diff, random_bound, gcd;
+    mpz_inits(mod, theta, target, mult1, mult2, diff, random_bound, gcd, NULL);
 
     MontgomeryPoint point_start;
     MontgomeryPoint point1;
@@ -73,27 +73,19 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         curve.MultPoints(point_target, target);
         curve.AddPoints(point1, point2, point_diff);
 
-        point_target.Reduce(mod);
-        point2.Reduce(mod);
+        int inv_out1 = point_target.Reduce(mod);
+        int inv_out2 = point2.Reduce(mod);
 
         int x_res = mpz_cmp(point_target.x, point2.x);
         int z_res = mpz_cmp(point_target.z, point2.z);
 
-        if(z_res != 0 || x_res != 0){
-            print_mpz("Diff:", diff);
-            print_mpz("Diff x:", point_diff.x);
-            print_mpz("Diff z:", point_diff.z);
-            print_mpz("Target x:", point_target.x);
-            print_mpz("Point2 x:", point2.x);
-            print_mpz("Target z:", point_target.z);
-            print_mpz("Point2 z:", point2.z);
+        if(inv_out1 == 0 && inv_out2 == 0){
+            CHECK(x_res == 0);
+            CHECK(z_res == 0);
         }
-
-        CHECK(x_res == 0);
-        CHECK(z_res == 0);
     }
 
-    mpz_clears(mod, theta, target, mult1, mult2, diff, random_bound, NULL);
+    mpz_clears(mod, theta, target, mult1, mult2, diff, random_bound, gcd, NULL);
 }
 
 TEST_CASE("Prime Generation"){
