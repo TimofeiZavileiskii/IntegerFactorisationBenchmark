@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -Wall -g0 -Os
 INCLUDES = -lgmp 
-GPU_FLAG = -arch=sm_75
+GPU_FLAG = -arch=sm_75 -lgmp
 
 all: generate_benchmark factorise_integers test
 
@@ -26,16 +26,20 @@ GeneratePrimes.o: GeneratePrimes.cpp GeneratePrimes.h
 	$(CC) $(CFLAGS) -c GeneratePrimes.cpp $(INCLUDES)
 
 
-factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o Utils.o
-	$(CC) $(CFLAGS) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o $(INCLUDES)
+factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o Utils.o PollardsRhoCuda.o
+	nvcc $(GPU_FLAG) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o PollardsRhoCuda.o
 
 
-IntegerFactorisationBenchmark.o: IntegerFactorisationBenchmark.cpp PollardsRho.h TrialDivision.h
-	$(CC) $(CFLAGS) -c IntegerFactorisationBenchmark.cpp $(INCLUDES)
+IntegerFactorisationBenchmark.o: IntegerFactorisationBenchmark.cpp PollardsRho.h TrialDivision.h PollardsRhoCuda.h
+	nvcc $(GPU_FLAG) -c IntegerFactorisationBenchmark.cpp
 
 
 PollardsRho.o: PollardsRho.h PollardsRho.cpp Utils.o Utils.h
 	$(CC) $(CFLAGS) -c PollardsRho.cpp $(INCLUDES)
+
+
+PollardsRhoCuda.o: PollardsRhoCuda.cu
+	nvcc $(GPU_FLAG) -c PollardsRhoCuda.cu
 
 
 PollardsP1.o: PollardsP1.cpp PollardsP1.h Utils.o Utils.h

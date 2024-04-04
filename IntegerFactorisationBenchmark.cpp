@@ -7,10 +7,8 @@
 #include <time.h>
 #include "gmp.h"
 #include "Utils.h"
-#include "PollardsRho.h"
-#include "PollardsP1.h"
-#include "TrialDivision.h"
-#include "ECM.h"
+#include "PollardsRhoCuda.h"
+
 
 void manual_input(){
     mpz_t to_factor, divisor, other_divisor, check;
@@ -19,7 +17,7 @@ void manual_input(){
     std::cout << "Enter number to factor:" << std::endl;
     mpz_inp_str(to_factor, NULL, 10);
 
-    Ecm(divisor, to_factor, 1);
+    PollardsRhoCuda(divisor, to_factor);
 
     mpz_div(other_divisor, to_factor, divisor);
     mpz_mod(check, to_factor, divisor);
@@ -51,9 +49,9 @@ float benchmark_number(mpz_t& rsa_num){
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    Ecm(factor, rsa_num, 8);
+    PollardsRhoCuda(factor, rsa_num);
     auto end_time = std::chrono::high_resolution_clock::now();
-
+ 
     std::chrono::duration<float> time = end_time - start_time;
     if(mpz_cmp_ui(factor, 1) == 0 || mpz_cmp_ui(factor, 0) == 0){
         std::cout << "Factorisation failed for main factor = ";
@@ -131,7 +129,7 @@ void factorise_benchmark(){
     
     std::string line;
     int count = 0;
-    int max_count = 1000;
+    int max_count = 1000; //Change numbers in the benchmark to factor
 
     while(std::getline(benchmark, line))
     {
