@@ -35,10 +35,6 @@ __global__ void try_division(instance_t* problem) {
     cgbn_mul_ui32(bn_env, range_start, range_start, instance);
     cgbn_add_ui32(bn_env, range_start, range_start, 2);
 
-    if(instance == 0 && threadIdx.x % TPI == 0){
-        printf(">> %i\n", range_size);
-    }
-
     for(uint32_t i = 0; i < range_size && !factored; i++){
         cgbn_add_ui32(bn_env, try_mod, range_start, i);
         cgbn_rem(bn_env, mod_out, to_factor, try_mod);
@@ -58,12 +54,15 @@ __global__ void try_division(instance_t* problem) {
 }
 
 
-void TrialDivisionCuda(mpz_t& output, mpz_t& to_factor)
-{
-    const int num_kernels = 268435456;
-    const int inst_size = num_kernels * TPI;
+void TrialDivisionCuda(mpz_t output, mpz_t to_factor, int thread_count) {
+    if(thread_count == 0){
+        thread_count = 2048;
+    }
+
+    int num_kernels = thread_count;
+    int inst_size = num_kernels * TPI;
     const int block_size = 512;
-    const int block_num = inst_size / block_size;
+    int block_num = inst_size / block_size;
     
     const bool initial_factored = false;
 

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <unistd.h>     
 
-void ThreadJobTrial(mpz_t& output, mpz_t& to_factor, volatile bool& factored, volatile bool& can_continue, mpz_t temp_start, mpz_t temp_end){
+void ThreadJobTrial(mpz_t output, mpz_t to_factor, volatile bool& factored, volatile bool& can_continue, mpz_t temp_start, mpz_t temp_end){
     mpz_t try_mod, trial_divisor, end;
 
     mpz_inits(try_mod, trial_divisor, end, NULL);
@@ -26,7 +26,11 @@ void ThreadJobTrial(mpz_t& output, mpz_t& to_factor, volatile bool& factored, vo
     mpz_clears(try_mod, trial_divisor, end, NULL);
 }
 
-void TrialDivision(mpz_t& output, mpz_t& to_factor, int thread_count){
+void TrialDivision(mpz_t output, mpz_t to_factor, int thread_count){
+    if(thread_count == 0){
+        thread_count = 8;
+    }
+
     volatile bool factored = false;
     mpz_t lower_bound;
     mpz_init(lower_bound);
@@ -43,7 +47,7 @@ void TrialDivision(mpz_t& output, mpz_t& to_factor, int thread_count){
         std::vector<std::thread> workers;
         for(int i = 0; i < thread_count; i++){
             volatile bool can_continue = false;
-            workers.emplace_back(std::thread(ThreadJobTrial, std::ref(output), std::ref(to_factor), std::ref(factored), std::ref(can_continue), range_start, range_end));
+            workers.emplace_back(std::thread(ThreadJobTrial, output, to_factor, std::ref(factored), std::ref(can_continue), range_start, range_end));
             while(!can_continue){
             }
 

@@ -1,4 +1,4 @@
-#include "TrialDivisionCuda.h"
+#include "PollardsRhoCuda.h"
 #include "gmp.h"
 #include <iostream>
 #include "include/cgbn/cgbn.h"
@@ -79,11 +79,15 @@ __global__ void TryPollardRho(PollardStart* starting) {
 }
 
 
-void PollardsRhoCuda(mpz_t output, mpz_t to_factor){
-    const int problem_instances = 2048;
-    const int inst_size = problem_instances * TPI;
+void PollardsRhoCuda(mpz_t output, mpz_t to_factor, int thread_count){
+    if(thread_count == 0){
+        thread_count = 2048;
+    }
+
+    int problem_instances = thread_count;
+    int inst_size = problem_instances * TPI;
     const int block_size = 512;
-    const int block_num = inst_size / block_size;
+    int block_num = inst_size / block_size;
 
     const bool initial_factored = false;
     

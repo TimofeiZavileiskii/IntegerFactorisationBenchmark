@@ -23,7 +23,7 @@ IN THE SOFTWARE.
 ***/
 
 // support routines
-void cuda_check(cudaError_t status, const char *action=NULL, const char *file=NULL, int32_t line=0) {
+inline void cuda_check(cudaError_t status, const char *action=NULL, const char *file=NULL, int32_t line=0) {
   // check for cuda errors
 
   if(status!=cudaSuccess) {
@@ -34,7 +34,7 @@ void cuda_check(cudaError_t status, const char *action=NULL, const char *file=NU
   }
 }
 
-void cgbn_check(cgbn_error_report_t *report, const char *file=NULL, int32_t line=0) {
+inline void cgbn_check(cgbn_error_report_t *report, const char *file=NULL, int32_t line=0) {
   // check for cgbn errors
 
   if(cgbn_error_report_check(report)) {

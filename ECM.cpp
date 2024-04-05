@@ -65,7 +65,11 @@ void EcmJob(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<
     mpz_clears(theta, random_bound, f, gcd, NULL);
 }
 
-void Ecm(mpz_t& output, mpz_t& to_factor, int thread_count){
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count){
+    if(thread_count == 0){
+        thread_count = 8;
+    }
+
     double to_factor_d = mpz_get_d(to_factor);
     double smallest_factor = sqrt(to_factor_d);
     double log_smallest_factor = log(smallest_factor);

@@ -21,7 +21,7 @@
 */
 
 
-bool PollardsP1Job(mpz_t& output, mpz_t& to_factor, double bound_power){
+bool PollardsP1Job(mpz_t output, mpz_t to_factor, double bound_power){
     mpz_t base, bound, exponent, exponent2, base_minus_1, try_divisor;
     mpz_inits(base, bound, exponent, exponent2, base_minus_1, try_divisor, NULL);
     double bound_d = mpz_get_d(to_factor);
@@ -59,9 +59,11 @@ bool PollardsP1Job(mpz_t& output, mpz_t& to_factor, double bound_power){
 }
 
 
-void PollardsP1(mpz_t& output, mpz_t& to_factor, double bound_exp){
+void PollardsP1(mpz_t output, mpz_t to_factor, int thread_count){
     bool factored = false;
-    factored = PollardsP1Job(output, to_factor, bound_exp);
+    double bound = 100000;
+    //Change the algorithm for the thread count
+    factored = PollardsP1Job(output, to_factor, bound);
     
     if(!factored){
         mpz_set_ui(output, 1);
