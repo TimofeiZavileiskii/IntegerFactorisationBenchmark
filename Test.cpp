@@ -59,7 +59,7 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         mpz_urandomm(target, random_state, random_bound);
         mpz_add_ui(target, target, 3);
         mpz_sub_ui(random_bound, target, 2);
-        mpz_urandomm(mult1, random_state, target);
+        mpz_urandomm(mult1, random_state, random_bound);
         mpz_add_ui(mult1, mult1, 1);
         mpz_sub(mult2, target, mult1);
 
@@ -79,7 +79,7 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         int x_res = mpz_cmp(point_target.x, point2.x);
         int z_res = mpz_cmp(point_target.z, point2.z);
 
-        if(inv_out1 == 0 && inv_out2 == 0){
+        if(inv_out1 != 0 && inv_out2 != 0){
             CHECK(x_res == 0);
             CHECK(z_res == 0);
         }
