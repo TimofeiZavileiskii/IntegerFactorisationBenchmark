@@ -14,7 +14,9 @@
 #include "TrialDivisionCuda.h"
 #include "TrialDivision.h"
 #include <cxxopts.hpp>
-
+#include <unistd.h>
+#include <cstdlib>
+#include <signal.h>
 
 void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::string& algorithm_name){
     if(algorithm_name == "trial_division" || algorithm_name == "td"){
@@ -146,6 +148,64 @@ void compute_stats(std::vector<float>& times, float& mean, float& variance, floa
     std = sqrt(variance);
 }
 
+
+void signal_handler(int signum){
+    std::cout << "\nInterrupt Caught -- adding stats to results and terminating\n";
+    std::string results_path = "benchmark_results.csv";
+    std::string amended_results_path = "amended_benchmark_results.csv";
+
+    //Read entire file
+    std::ifstream benchmark(results_path);
+    std::vector<std::string> benchmark_lines;
+    std::vector<float> times;
+    if(!benchmark.is_open()) {
+        std::cout << "Program terminate\nFailed to write stats" << std::endl;
+        exit(signum);
+    }
+    
+    while(!benchmark.eof()) {
+        std::string buffer;
+        getline(benchmark, buffer);
+        benchmark_lines.push_back(buffer + '\n');
+    }
+    benchmark.close();
+
+    //Add stats to the last line
+    int end_index = benchmark_lines.size() - 1;
+    std::string last_line = benchmark_lines[end_index];
+    last_line.pop_back();
+    last_line.pop_back();
+    std::stringstream ss(last_line);
+    std::string substr;
+    bool first = true;
+    while(ss.good()){
+        getline(ss, substr, ',');
+        if(first || substr.size() == 0){
+            first = false;
+            continue;
+        }
+        times.push_back(std::stof(substr));
+    }
+    float mean;
+    float variance;
+    float std;
+    compute_stats(times, mean, variance, std);
+
+    last_line = last_line + "," + std::to_string(mean) + "," + std::to_string(std);
+
+    benchmark_lines[end_index] = last_line;
+
+    //Write the end buffer
+    std::ofstream amended_results(amended_results_path);
+    for(std::string line: benchmark_lines) {
+        amended_results << line;
+    }
+    amended_results.close();
+
+    exit(signum);
+}
+
+
 void factorise_benchmark(const std::string& factorisation_algorithm, int thread_num, int to_factorise_count, int rseed){
     std::vector<int> bit_sizes;
     
@@ -206,6 +266,8 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
 
 int main(int argc, char *argv[]){
     std::cout << "Program Start!\n";
+
+    signal(SIGINT, signal_handler);
 
     cxxopts::Options options("Factorisation Benchmark", "The framework for timing integer factorisation algorithms");
     options.add_options()

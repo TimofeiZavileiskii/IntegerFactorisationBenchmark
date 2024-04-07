@@ -47,7 +47,7 @@ void TrialDivision(mpz_t output, mpz_t to_factor, int thread_count){
         std::vector<std::thread> workers;
         for(int i = 0; i < thread_count; i++){
             volatile bool can_continue = false;
-            workers.emplace_back(std::thread(ThreadJobTrial, std::ref(output), std::ref(to_factor), std::ref(factored), std::ref(can_continue), range_start, range_end));
+            workers.emplace_back(std::thread(ThreadJobTrial, output, to_factor, std::ref(factored), std::ref(can_continue), range_start, range_end));
             while(!can_continue){
             }
 
