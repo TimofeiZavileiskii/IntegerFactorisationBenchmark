@@ -10,9 +10,44 @@
 #include <thread>
 
 
-void EcmJob(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, double bound, int& curves_tried)
+void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, double bound, int& curves_tried){
+    gmp_randstate_t random_state;
+    gmp_randinit_default(random_state);
+    gmp_randseed_ui(random_state, starting_seed);
+    
+    WeistrassCurve curve;
+    mpz_set(curve.n, to_factor);
+    mpz_t f;
+    mpz_inits(f, NULL);
+
+    WeistrassPoint point;
+    
+    while(!factored)
     {
-    mpz_class n = mpz_class(to_factor);
+        curves_tried++;
+        int outcome = curve.Initialise(random_state, point, to_factor, output);
+        if(outcome == 0)
+            continue;
+        if(outcome == 1){
+            factored = true;
+            continue;
+        }
+        
+        for(mpz_class& prime : primes){
+            if(factored)
+                break;
+
+            long exponent = log_base(bound, prime.get_d());
+            mpz_pow_ui(f, prime.get_mpz_t(), exponent);
+            curve.MultPoints(point, f, output, factored);
+        }
+    }
+
+    mpz_clears(f, NULL);
+}
+
+void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, double bound, int& curves_tried)
+    {
     gmp_randstate_t random_state;
     gmp_randinit_default(random_state);
     gmp_randseed_ui(random_state, starting_seed);
@@ -65,17 +100,35 @@ void EcmJob(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<
     mpz_clears(theta, random_bound, f, gcd, NULL);
 }
 
-void Ecm(mpz_t output, mpz_t to_factor, int thread_count){
-    if(thread_count == 0){
-        thread_count = 8;
-    }
 
+void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, double bound, int& curves_tried){
+
+}
+
+
+void EcmJobMonstDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<mpz_class>& primes, long starting_seed, double bound, int& curves_tried){
+
+}
+
+
+mpz_class ChooseBound(mpz_t to_factor){
     double to_factor_d = mpz_get_d(to_factor);
     double smallest_factor = sqrt(to_factor_d);
     double log_smallest_factor = log(smallest_factor);
     double bound = std::exp((sqrt(2.0))/2.0 * sqrt(log(log_smallest_factor)*log_smallest_factor));
     mpz_class B = bound;
     B -= B % 2;
+    return B;
+}
+
+
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm){
+    if(thread_count == 0){
+        thread_count = 8;
+    }
+
+    mpz_class B = ChooseBound(to_factor);
+
     std::vector<mpz_class> primes;
     SieveOfEratosthenes(B, primes);
 
@@ -83,7 +136,7 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count){
     int sum = 0;
     if(thread_count == 1){
         long seed = rand();
-        EcmJob(output, to_factor, factored, primes, seed, B.get_d(), sum);
+        EcmJobMontMonostage(output, to_factor, factored, primes, seed, B.get_d(), sum);
     }
     else{
         std::vector<std::thread> workers = std::vector<std::thread>(); 
@@ -91,7 +144,12 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count){
         for(int i = 0; i < thread_count; i++){
             long random_seed = rand();
             curve_nums[i] = 0;
-            workers.emplace_back(std::thread(EcmJob, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B.get_d(), std::ref(curve_nums[i])));
+            if(algorithm == Weierstrass1){
+                workers.emplace_back(std::thread(EcmJobWeisMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B.get_d(), std::ref(curve_nums[i])));
+            }
+            else if(algorithm == Montgomery1){
+                workers.emplace_back(std::thread(EcmJobMontMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B.get_d(), std::ref(curve_nums[i])));
+            }
         }
         for(std::thread &thread : workers){
             thread.join();
@@ -104,3 +162,4 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count){
     }
     std::cout << "Total curve number: " << sum << "\n";
 }
+

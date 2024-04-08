@@ -235,6 +235,52 @@ class WeistrassCurve{
         mpz_clears(a, b, n, to_invert, y2, x_inv, NULL);
     }
 
+    inline int Initialise(gmp_randstate_t rstate, WeistrassPoint& point, mpz_t n, mpz_t output){
+        //Find first point on the curve
+        //Randomly select a, x and y
+        mpz_urandomm(a, rstate, n);
+        mpz_urandomm(point.x, rstate, n);
+        mpz_urandomm(point.y, rstate, n);
+
+        #define x_cube neg_y
+        #define a_x s
+        #define pow_disc y2
+        #define b_sqr to_invert
+        #define g x_inv
+        
+        //Compute b value for the curve based on the random coordinates
+        mpz_mul(b, point.y, point.y);
+        mpz_mul(x_cube, point.x, point.x);
+        mpz_mul(x_cube, x_cube, point.x);
+        mpz_mul(a_x, point.x, a);
+        mpz_sub(b, b, x_cube);
+        mpz_sub(b, b, a_x);
+        mpz_mod(b, b, n);
+
+        //Check discriminant 
+        mpz_pow_ui(pow_disc, a, 3);
+        mpz_mul(b_sqr, b, b);
+        mpz_mul_ui(b_sqr, b_sqr, 27);
+        mpz_mul_ui(pow_disc, pow_disc, 4);
+        mpz_add(pow_disc, pow_disc, b_sqr);
+        mpz_gcd(g, pow_disc, n);
+
+        if(mpz_cmp(g, n) == 0){
+            return 0;
+        }
+        if(mpz_cmp_ui(g, 1) > 0){
+            mpz_set(output, g);
+            return 1;
+        }
+
+        return 2;
+        #undef x_cube
+        #undef a_x
+        #undef pow_disc
+        #undef b_sqr
+        #undef g
+    }
+
     inline void AddPoints(WeistrassPoint& point, WeistrassPoint& to_add, mpz_t factor, volatile bool& is_factored){
         if(to_add.is_inf)
             return;

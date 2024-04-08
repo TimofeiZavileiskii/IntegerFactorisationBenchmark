@@ -34,11 +34,17 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::s
     else if(algorithm_name == "pollards_p1" || algorithm_name == "pp1"){
         PollardsP1(output, to_factor, thread_count);
     }
-    else if(algorithm_name == "ecm_montgomery" || algorithm_name == "ecmm"){
-        Ecm(output, to_factor, thread_count);
+    else if(algorithm_name == "ecm_weierstrass" || algorithm_name == "ecmw"){
+        Ecm(output, to_factor, thread_count, Weierstrass1);
     }
     else if(algorithm_name == "ecm_montgomery" || algorithm_name == "ecmm"){
-        Ecm(output, to_factor, thread_count);
+        Ecm(output, to_factor, thread_count, Montgomery1);
+    }
+    else if(algorithm_name == "ecm_weierstrass_2" || algorithm_name == "ecmw2"){
+        Ecm(output, to_factor, thread_count, Weierstrass2);
+    }
+    else if(algorithm_name == "ecm_montgomery_2" || algorithm_name == "ecmm2"){
+        Ecm(output, to_factor, thread_count, Montgomery2);
     }
     else if(algorithm_name == "ecm_montgomery_cuda" || algorithm_name == "ecmmc"){
         //not implemented
