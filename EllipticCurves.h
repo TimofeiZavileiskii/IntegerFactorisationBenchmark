@@ -22,6 +22,11 @@ struct MontgomeryPoint{
         ModularAdd(x_add_z, x, z, mod);
     }
 
+    inline void ComputeXZ(mpz_t xz, mpz_t mod){
+        mpz_mul(xz, x, z);
+        mpz_mod(xz, xz, mod);
+    }
+
     inline void Copy(MontgomeryPoint& point){
         mpz_set(point.x, x);
         mpz_set(point.z, z);
@@ -216,6 +221,12 @@ struct WeistrassPoint{
 
     inline ~WeistrassPoint(){
         mpz_clears(x, y, NULL);
+    }
+
+    inline void Copy(WeistrassPoint& point){
+        mpz_set(point.x, x);
+        mpz_set(point.y, y);
+        point.is_inf = is_inf;
     }
 };
 

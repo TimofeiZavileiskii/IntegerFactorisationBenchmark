@@ -84,6 +84,53 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
             CHECK(z_res == 0);
         }
     }
+    //Check curve addition is commutative
+    for(int i = 0; i < REPEAT_TEST; i++){
+        int bit_size = (rand() % 292) + 8;
+        mpz_class mod_c = generate_rsa(bit_size, random_state);
+
+        mpz_set(mod, mod_c.get_mpz_t());
+        MontgomeryCurve curve(mod);
+
+        mpz_set(random_bound, mod);
+        mpz_sub_ui(random_bound, random_bound, 7);
+
+        mpz_urandomm(theta, random_state, random_bound);
+        mpz_add_ui(theta, theta, 6);
+        bool inverse_not_exist = curve.ComputeC_Q(theta, point_start, random_bound); //random bound as dummy
+     
+        if(inverse_not_exist){ continue; }
+
+        mpz_class multiple1 = rand() % 10000;
+        mpz_class multiple2 = rand() % 10000;
+        mpz_class diff = multiple1 - multiple2;
+        mpz_class sum = multiple1 + multiple2;
+        if(diff < 0){
+            diff = -diff;
+        }
+        point_start.Copy(point1);
+        point_start.Copy(point2);
+        point_start.Copy(point_diff);
+        point_start.Copy(point_target);
+
+        curve.MultPoints(point1, multiple1.get_mpz_t());
+        curve.MultPoints(point2, multiple2.get_mpz_t());
+        point2.Copy(point_target);
+        curve.AddPoints(point1, point_target, point_diff);
+        curve.AddPoints(point2, point1, point_diff);
+        
+        
+        int inv_out1 = point_target.Reduce(mod);
+        int inv_out2 = point1.Reduce(mod);
+
+        int x_res = mpz_cmp(point_target.x, point1.x);
+        int z_res = mpz_cmp(point_target.z, point1.z);
+
+        if(inv_out1 != 0 && inv_out2 != 0){
+            CHECK(x_res == 0);
+            CHECK(z_res == 0);
+        }
+    }
 
     mpz_clears(mod, theta, target, mult1, mult2, diff, random_bound, gcd, NULL);
 }

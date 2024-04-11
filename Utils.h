@@ -21,6 +21,11 @@ inline void print_mpz(std::string str, mpz_t n){
     std::cout << "\n";
 }
 
+inline void initialise_rstate(gmp_randstate_t& rstate, long rseed){
+    gmp_randinit_default(rstate);
+    gmp_randseed_ui(rstate, rseed);
+}
+
 struct MontgomeryParams{
     mpz_t mod, n_bar, r_mask, temp;
     uint bit_num;

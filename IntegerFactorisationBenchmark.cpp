@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <signal.h>
+#include <set>
+
 
 void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::string& algorithm_name){
     if(algorithm_name == "trial_division" || algorithm_name == "td"){
@@ -46,10 +48,11 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::s
     else if(algorithm_name == "ecm_montgomery_2" || algorithm_name == "ecmm2"){
         Ecm(output, to_factor, thread_count, Montgomery2);
     }
-    else if(algorithm_name == "ecm_montgomery_cuda" || algorithm_name == "ecmmc"){
-        //not implemented
+    else{
+        throw std::logic_error("Algorithm with name " + algorithm_name + " not implemented\n");
     }
 }
+
 
 float benchmark_number(mpz_t to_factor, int thread_count, const std::string& algorithm){
     mpz_t factor, other_factor, remainder;
@@ -93,6 +96,9 @@ float benchmark_number(mpz_t to_factor, int thread_count, const std::string& alg
     std::cout << std::endl;
 
     std::cout << "Time spent: " << time.count() << " s" << std::endl;
+    
+    mpz_clears(factor, other_factor, remainder, NULL);
+
     return time.count();
 }
 
@@ -270,6 +276,36 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
     mpz_clear(rsa_num);
 }
 
+void study_prime_numbers(){
+    std::vector<mpz_class> primes;
+    mpz_class bound = 100000u;
+    SieveOfEratosthenes(bound, primes);
+
+    std::set<mpz_class> differences;
+    
+    bool first = true;
+    mpz_class prev;
+    mpz_class diff;
+    mpz_class max_diff;
+    for(mpz_class& p : primes){
+        if(first){
+            first = false;
+            prev = p;
+            continue;
+        }
+        diff = p - prev;
+        differences.insert(diff);
+        if(diff > max_diff){
+            max_diff = diff;
+        }
+        prev = p;
+    }
+
+    std::cout << "Count is " << differences.size() << " with max diff: ";
+    mpz_out_str(NULL, 10, max_diff.get_mpz_t());
+    std::cout << std::endl;
+}
+
 int main(int argc, char *argv[]){
     std::cout << "Program Start!\n";
 
@@ -295,7 +331,7 @@ int main(int argc, char *argv[]){
         seed = time(NULL);
     }
     srand(seed);
-
+    
     if(manual_mode){
         manual_input(factorisation_algorithm, thread_number);
     }
