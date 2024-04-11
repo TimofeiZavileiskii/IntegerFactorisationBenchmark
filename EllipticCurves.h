@@ -51,6 +51,11 @@ struct MontgomeryPoint{
 };
 
 
+inline bool test_bit(long n, int bit){
+    return (n & (1 << (bit))) != 0;    
+}
+
+
 class MontgomeryCurve{
     private:
     MontgomeryPoint p_copy;
@@ -167,16 +172,16 @@ class MontgomeryCurve{
         #undef cross_2
     }
 
-    inline void MultPoints(MontgomeryPoint& point, mpz_t multiple){
-        if(mpz_cmp_ui(multiple, 0) == 0){
+    inline void MultPoints(MontgomeryPoint& point, long multiple){
+        if(multiple == 0){
             mpz_set_ui(point.x, 0);
             mpz_set_ui(point.z, 0);
             return;
         }
-        if(mpz_cmp_ui(multiple, 1) == 0){
+        if(multiple == 1){
             return;
         }
-        if(mpz_cmp_ui(multiple, 2) == 0){
+        if(multiple == 2){
             DoublePoint(point);
             return;
         }
@@ -185,10 +190,10 @@ class MontgomeryCurve{
         point.Copy(p_double);
         DoublePoint(p_double);
         
-        int bit_count = (int)log2(mpz_get_d(multiple))+1;
+        int bit_count = (int)log2((double)multiple)+1;
 
         for(int i = bit_count-2; i > 0; i--){
-            if(mpz_tstbit(multiple, i) == 1){
+            if(test_bit(multiple, i) == 1){
                 AddPoints(p_double, p_copy, point);
                 DoublePoint(p_double);
             }
@@ -197,7 +202,7 @@ class MontgomeryCurve{
                 DoublePoint(p_copy);
             }
         }
-        if(mpz_tstbit(multiple, 0) == 1){
+        if(test_bit(multiple, 0) == 1){
             AddPoints(p_double, p_copy, point);
             p_copy.Copy(point);
         }
@@ -238,8 +243,9 @@ class WeistrassCurve{
     public:
     mpz_t a, b, n;
 
-    inline WeistrassCurve(){
+    inline WeistrassCurve(mpz_t mod){
         mpz_inits(a, b, n, neg_y, s, to_invert, y2, x_inv, NULL);
+        mpz_set(n, mod);
     }
 
     inline ~WeistrassCurve(){
@@ -357,12 +363,12 @@ class WeistrassCurve{
         point.is_inf = false;
     }
 
-    inline void MultPointsRecursive(WeistrassPoint& point_copy, WeistrassPoint& point, mpz_t multiple, mpz_t factor, volatile bool& is_factored){
-        if(mpz_cmp_ui(multiple, 0) == 0 || mpz_cmp_ui(multiple, 1) == 0)
+    inline void MultPointsRecursive(WeistrassPoint& point_copy, WeistrassPoint& point, long multiple, mpz_t factor, volatile bool& is_factored){
+        if(multiple == 0 || multiple == 1)
             return;
 
-        bool is_odd = mpz_odd_p(multiple) != 0;
-        mpz_div_ui(multiple, multiple, 2);
+        bool is_odd = (multiple & 1) == 1;
+        multiple = multiple >> 1;
         
         MultPointsRecursive(point_copy, point, multiple, factor, is_factored);
         if(is_factored)
@@ -373,7 +379,7 @@ class WeistrassCurve{
             AddPoints(point, point_copy, factor, is_factored);}
     }
 
-    inline void MultPoints(WeistrassPoint& point, mpz_t multiple, mpz_t factor, volatile bool& is_factored){
+    inline void MultPoints(WeistrassPoint& point, long multiple, mpz_t factor, volatile bool& is_factored){
         mpz_set(p_copy.x, point.x);
         mpz_set(p_copy.y, point.y);
         

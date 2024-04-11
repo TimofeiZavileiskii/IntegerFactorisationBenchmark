@@ -11,8 +11,8 @@ generate_benchmark: GenerateBenchmark.o GeneratePrimes.o GeneratePrimes.cpp Gene
 	$(CC) $(CFLAGS) -o generate_benchmark GenerateBenchmark.o GeneratePrimes.o $(INCLUDES)
 
 
-test: Test.o GeneratePrimes.o
-	$(CC) $(CFLAGS) -o test Test.o GeneratePrimes.o $(INCLUDES)
+test: Test.o GeneratePrimes.o Test.cpp EllipticCurves.h Utils.h
+	$(CC) $(CFLAGS) -o test Test.o GeneratePrimes.o Utils.o $(INCLUDES)
 
 
 Test.o: Test.cpp EllipticCurves.h Utils.h

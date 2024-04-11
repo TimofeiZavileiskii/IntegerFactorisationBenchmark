@@ -277,17 +277,17 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
 }
 
 void study_prime_numbers(){
-    std::vector<mpz_class> primes;
-    mpz_class bound = 100000u;
+    std::vector<long> primes;
+    long bound = 100000u;
     SieveOfEratosthenes(bound, primes);
 
-    std::set<mpz_class> differences;
+    std::set<long> differences;
     
     bool first = true;
-    mpz_class prev;
-    mpz_class diff;
-    mpz_class max_diff;
-    for(mpz_class& p : primes){
+    long prev;
+    long diff;
+    long max_diff;
+    for(long& p : primes){
         if(first){
             first = false;
             prev = p;
@@ -301,9 +301,7 @@ void study_prime_numbers(){
         prev = p;
     }
 
-    std::cout << "Count is " << differences.size() << " with max diff: ";
-    mpz_out_str(NULL, 10, max_diff.get_mpz_t());
-    std::cout << std::endl;
+    std::cout << "Count is " << differences.size() << " with max diff: " << max_diff << "\n";
 }
 
 int main(int argc, char *argv[]){

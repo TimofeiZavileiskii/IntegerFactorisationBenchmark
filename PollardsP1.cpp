@@ -22,27 +22,27 @@
 
 
 bool PollardsP1Job(mpz_t output, mpz_t to_factor, double bound_power){
-    mpz_t base, bound, exponent, exponent2, base_minus_1, try_divisor;
-    mpz_inits(base, bound, exponent, exponent2, base_minus_1, try_divisor, NULL);
+    mpz_t base, base_minus_1, try_divisor;
+    long bound, exponent;
+    mpz_inits(base, exponent, base_minus_1, try_divisor, NULL);
     double bound_d = mpz_get_d(to_factor);
     double bound_d_log = std::log2(bound_d);
     
     bound_d = std::pow(bound_d, bound_power);
-    mpz_set_ui(bound, bound_d);
+    bound = bound_d;
     mpz_set_ui(base, 2);
     
-    std::vector<mpz_class> primes;
-    mpz_class bound_c = mpz_class(bound);
-    SieveOfEratosthenes(bound_c, primes);
+    std::vector<long> primes;
+    SieveOfEratosthenes(bound, primes);
     unsigned int i = 0;
     while(i < primes.size()){
-        mpz_class& prime = primes[i];
+        long& prime = primes[i];
 
-        double prime_d = prime.get_d();
+        double prime_d = prime;
         double exponent_d =  std::floor(bound_d_log/std::log2(prime_d));
         long exponent_l = (long)exponent_d;
-        mpz_pow_ui(exponent2, prime.get_mpz_t(), exponent_l);
-        mpz_powm(base, base, exponent2, to_factor);
+        exponent = (pow(prime, exponent_l) + 0.5);
+        mpz_powm_ui(base, base, exponent, to_factor);
 
         if(i % 10 == 0){
             mpz_sub_ui(base_minus_1, base, 1);

@@ -16,7 +16,8 @@ void GetRandomState(gmp_randstate_t& random_state){
     gmp_randseed_ui(random_state, seed);
 }
 
-TEST_CASE("Test Elliptic Curve Arithmetic"){
+
+TEST_CASE("Test Montgomery Elliptic Curve Arithmetic"){
     srand(time(NULL));
     gmp_randstate_t random_state;
     GetRandomState(random_state);
@@ -54,7 +55,7 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         point_start.Copy(point_diff);
         point_start.Copy(point_target);
 
-        mpz_set(random_bound, mod);
+        mpz_set_ui(random_bound, 10000);
         mpz_sub_ui(random_bound, random_bound, 5);
         mpz_urandomm(target, random_state, random_bound);
         mpz_add_ui(target, target, 3);
@@ -67,10 +68,10 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         if(mpz_cmp_ui(diff, 0) == 0){ continue; }
         mpz_abs(diff, diff);
 
-        curve.MultPoints(point1, mult1);
-        curve.MultPoints(point2, mult2);
-        curve.MultPoints(point_diff, diff);
-        curve.MultPoints(point_target, target);
+        curve.MultPoints(point1, mpz_get_ui(mult1));
+        curve.MultPoints(point2, mpz_get_ui(mult2));
+        curve.MultPoints(point_diff, mpz_get_ui(diff));
+        curve.MultPoints(point_target, mpz_get_ui(target));
         curve.AddPoints(point1, point2, point_diff);
 
         int inv_out1 = point_target.Reduce(mod);
@@ -113,8 +114,8 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
         point_start.Copy(point_diff);
         point_start.Copy(point_target);
 
-        curve.MultPoints(point1, multiple1.get_mpz_t());
-        curve.MultPoints(point2, multiple2.get_mpz_t());
+        curve.MultPoints(point1, multiple1.get_ui());
+        curve.MultPoints(point2, multiple2.get_ui());
         point2.Copy(point_target);
         curve.AddPoints(point1, point_target, point_diff);
         curve.AddPoints(point2, point1, point_diff);
@@ -134,6 +135,83 @@ TEST_CASE("Test Elliptic Curve Arithmetic"){
 
     mpz_clears(mod, theta, target, mult1, mult2, diff, random_bound, gcd, NULL);
 }
+
+TEST_CASE("Weistrass Elliptic curve Arithmetic"){
+    srand(time(NULL));
+    gmp_randstate_t random_state;
+    GetRandomState(random_state);
+
+    const int REPEAT_TEST = 300000;
+
+    mpz_t mod, target, mult1, mult2, diff, random_bound;
+    mpz_inits(mod, target, mult1, mult2, diff, random_bound, NULL);
+
+    WeistrassPoint point_start;
+    WeistrassPoint point1;
+    WeistrassPoint point2;
+    WeistrassPoint point_target;
+
+    for(int i = 0; i < REPEAT_TEST; i++)
+    {
+        int bit_size = (rand() % 292) + 8;
+        mpz_class mod_c = generate_rsa(bit_size, random_state);
+
+        mpz_set(mod, mod_c.get_mpz_t());
+        WeistrassCurve curve(mod);
+
+        int return_val = curve.Initialise(random_state, point_start, mod, random_bound); //random bound as dummy
+     
+        if(return_val != 2){  continue;   }
+
+        point_start.Copy(point1);
+        point_start.Copy(point2);
+        point_start.Copy(point_target);
+
+        mpz_set_ui(random_bound, 10000);
+        mpz_urandomm(target, random_state, random_bound);
+        mpz_add_ui(target, target, 3);
+        mpz_sub_ui(random_bound, target, 2);
+        mpz_urandomm(mult1, random_state, random_bound);
+        mpz_add_ui(mult1, mult1, 1);
+        mpz_sub(mult2, target, mult1);
+
+        mpz_sub(diff, mult2, mult1);
+        if(mpz_cmp_ui(diff, 0) == 0){ continue; }
+        mpz_abs(diff, diff);
+
+        volatile bool is_factored = false;
+
+
+        curve.MultPoints(point1, mpz_get_ui(mult1), random_bound, is_factored);
+        curve.MultPoints(point2, mpz_get_ui(mult2), random_bound, is_factored);
+        curve.MultPoints(point_target, mpz_get_ui(target), random_bound, is_factored);
+        curve.AddPoints(point1, point2, random_bound, is_factored);
+
+
+        int x_res = mpz_cmp(point_target.x, point1.x);
+        int z_res = mpz_cmp(point_target.y, point1.y);
+
+        if(!is_factored){
+            if(x_res != 0 || z_res != 0){
+                std::cout << "Failed for the point_target x ";
+                mpz_out_str(NULL, 10, point_target.x);
+                std::cout << " y ";
+                mpz_out_str(NULL, 10, point_target.y);
+                std::cout << " point1 x ";
+                mpz_out_str(NULL, 10, point1.x);
+                std::cout << " y ";
+                mpz_out_str(NULL, 10, point1.y);
+                std::cout << "\n";
+            }
+            CHECK(x_res == 0);
+            CHECK(z_res == 0);
+        }
+    }
+
+    mpz_clears(mod, target, mult1, mult2, diff, random_bound, NULL);
+}
+
+
 
 TEST_CASE("Prime Generation"){
     srand(time(NULL));
@@ -196,6 +274,45 @@ void CreateTestNums(mpz_t n1, mpz_t n2, mpz_t mod, MontgomeryParams& params, gmp
     mpz_urandomm(n2, random_state, mod);
     mpz_clear(rem);
 }
+
+bool PrimeTest(long prime){
+    if(prime == 2 || prime == 3)
+        return true;
+
+    for(int i = 2; i <= sqrt(prime); i++){
+        if(prime % i == 0)
+            return false;
+    }
+    return true;
+}
+
+bool TestPrimeGen(long bound){
+    std::vector<long> primes;
+    SieveOfEratosthenes(bound, primes);
+
+    long index = 0;
+    for(long i = 2; i < bound; i++){
+        if(PrimeTest(i)){
+            if(i == primes[index]){
+                index++;
+            }
+            else{
+                std::cout << "Failed at i " << i << " index " << index << " prime at index " << primes[index] << "\n"; 
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+TEST_CASE("Prime Sieve"){
+    long bound = 100000;
+    long bound2 = 200;
+
+    CHECK(TestPrimeGen(bound));
+    CHECK(TestPrimeGen(bound2));
+}
+
 
 TEST_CASE("Test Montgomery Arithmetic"){
     srand(time(NULL));

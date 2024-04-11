@@ -13,7 +13,7 @@ void inline SetBitArray(long index, unsigned char* array);
 
 void inline ZeroBitArray(long index, unsigned char* array);
 
-void SieveOfEratosthenes(mpz_class upperbound, std::vector<mpz_class>& primes);
+void SieveOfEratosthenes(long upperbound, std::vector<long>& primes);
 
 inline void print_mpz(std::string str, mpz_t n){
     std::cout << str;
