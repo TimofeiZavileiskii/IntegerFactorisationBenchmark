@@ -20,7 +20,7 @@
 #include <set>
 
 
-void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::string& algorithm_name){
+void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::string& algorithm_name, const std::vector<long>& primes){
     if(algorithm_name == "trial_division" || algorithm_name == "td"){
         TrialDivision(output, to_factor, thread_count);
     }
@@ -37,16 +37,19 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::s
         PollardsP1(output, to_factor, thread_count);
     }
     else if(algorithm_name == "ecm_weierstrass" || algorithm_name == "ecmw"){
-        Ecm(output, to_factor, thread_count, Weierstrass1);
+        Ecm(output, to_factor, thread_count, Weierstrass1, primes);
     }
     else if(algorithm_name == "ecm_montgomery" || algorithm_name == "ecmm"){
-        Ecm(output, to_factor, thread_count, Montgomery1);
+        Ecm(output, to_factor, thread_count, Montgomery1, primes);
     }
     else if(algorithm_name == "ecm_weierstrass_2" || algorithm_name == "ecmw2"){
-        Ecm(output, to_factor, thread_count, Weierstrass2);
+        Ecm(output, to_factor, thread_count, Weierstrass2, primes);
     }
     else if(algorithm_name == "ecm_montgomery_2" || algorithm_name == "ecmm2"){
-        Ecm(output, to_factor, thread_count, Montgomery2);
+        Ecm(output, to_factor, thread_count, Montgomery2, primes);
+    }
+    else if(algorithm_name == "ecm_cuda" || algorithm_name == "ecmc"){
+        //to implement
     }
     else{
         throw std::logic_error("Algorithm with name " + algorithm_name + " not implemented\n");
@@ -54,7 +57,7 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::s
 }
 
 
-float benchmark_number(mpz_t to_factor, int thread_count, const std::string& algorithm){
+float benchmark_number(mpz_t to_factor, int thread_count, const std::string& algorithm, const std::vector<long>& primes){
     mpz_t factor, other_factor, remainder;
     mpz_inits(factor, other_factor, remainder, NULL);
 
@@ -63,7 +66,7 @@ float benchmark_number(mpz_t to_factor, int thread_count, const std::string& alg
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    run_algorithm(factor, to_factor, thread_count, algorithm);
+    run_algorithm(factor, to_factor, thread_count, algorithm, primes);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
@@ -102,7 +105,7 @@ float benchmark_number(mpz_t to_factor, int thread_count, const std::string& alg
     return time.count();
 }
 
-void manual_input(const std::string& algorithm_name, int thread_num){
+void manual_input(const std::string& algorithm_name, int thread_num, const std::vector<long>& primes){
     mpz_t to_factor;
     mpz_inits(to_factor, NULL);
     bool to_continue = true;
@@ -113,7 +116,7 @@ void manual_input(const std::string& algorithm_name, int thread_num){
         std::cout << "Enter number to factor:\n";
         mpz_inp_str(to_factor, NULL, 10);
 
-        benchmark_number(to_factor, thread_num, algorithm_name);
+        benchmark_number(to_factor, thread_num, algorithm_name, primes);
 
         std::cout << "Continue? (yes/y)?\n";
         std::cin >> response;
@@ -218,7 +221,7 @@ void signal_handler(int signum){
 }
 
 
-void factorise_benchmark(const std::string& factorisation_algorithm, int thread_num, int to_factorise_count, int rseed){
+void factorise_benchmark(const std::string& factorisation_algorithm, int thread_num, int to_factorise_count, int rseed, const std::vector<long>& primes){
     std::vector<int> bit_sizes;
     
     std::string benchmark_name = "rsa_numbers.csv";
@@ -255,7 +258,7 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
             std::getline(ss, substr, ',');
 
             mpz_set_str(rsa_num, substr.c_str(), 10);
-            times_for_bitsize.push_back(benchmark_number(rsa_num, thread_num, factorisation_algorithm));
+            times_for_bitsize.push_back(benchmark_number(rsa_num, thread_num, factorisation_algorithm, primes));
             count++;
             write_entry(times_for_bitsize[times_for_bitsize.size()-1], ",", results_path);
             if(count > max_count){
@@ -276,6 +279,7 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
     mpz_clear(rsa_num);
 }
 
+//Function to find differences between prime numbers up to a bound and print them to console
 void study_prime_numbers(){
     std::vector<long> primes;
     long bound = 100000u;
@@ -315,7 +319,8 @@ int main(int argc, char *argv[]){
         ("m,manual", "To run the program in the manual input mode", cxxopts::value<bool>()->default_value("false"))
         ("c,count", "Cout of integers to factorise before closing the program", cxxopts::value<int>()->default_value("1000"))
         ("s,seed", "Random seed, chosen to be system time if left empty", cxxopts::value<int>()->default_value("-1"))
-        ("t,thread_number", "Number of threads to be used for the algorithm", cxxopts::value<int>()->default_value("0")); //Set to 0, signifying default number of threads, determined individually for each algorithm 
+        ("t,thread_number", "Number of threads to be used for the algorithm", cxxopts::value<int>()->default_value("0"))
+        ("p,prime_bound", "Up to which bound prime table should be generated", cxxopts::value<long>()->default_value("100000000")); //Set to 0, signifying default number of threads, determined individually for each algorithm 
 
     auto parsed_arguments = options.parse(argc, argv);
 
@@ -324,17 +329,27 @@ int main(int argc, char *argv[]){
     int count = parsed_arguments["count"].as<int>();
     int thread_number = parsed_arguments["thread_number"].as<int>();
     int seed = parsed_arguments["seed"].as<int>();
+    long prime_bound = parsed_arguments["prime_bound"].as<long>();
 
     if(seed == -1){
         seed = time(NULL);
     }
     srand(seed);
     
+    std::vector<long> prime_table;
+
+    std::cout << "Start computing the prime number table\n";
+    auto start_time = std::chrono::high_resolution_clock::now();
+    SieveOfEratosthenes(prime_bound, prime_table);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> time = end_time - start_time;
+    std::cout << "Finished constructing the prime number table\n It contains " << prime_table.size() << " primes, time taken: " << time.count() << "s\n";
+
     if(manual_mode){
-        manual_input(factorisation_algorithm, thread_number);
+        manual_input(factorisation_algorithm, thread_number, prime_table);
     }
     else{
-        factorise_benchmark(factorisation_algorithm, thread_number, count, seed);
+        factorise_benchmark(factorisation_algorithm, thread_number, count, seed, prime_table);
     }
 
     std::cout << "End of program!\n";

@@ -11,4 +11,4 @@ enum EcmAlgorithm{
 };
 
 
-void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm);
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes);

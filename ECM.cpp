@@ -10,7 +10,7 @@
 #include <thread>
 
 
-void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
+void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
     
@@ -30,7 +30,8 @@ void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
             continue;
         }
         
-        for(long& prime : primes){
+        for(int i = 0; primes[i] < bound; i++){
+            const long& prime = primes[i];
             if(factored)
                 break;
 
@@ -44,7 +45,7 @@ void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
 }
 
 
-void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
+void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
     const int DIFF_COUNT = 80;
     
     gmp_randstate_t random_state;
@@ -87,7 +88,7 @@ void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, s
             point.Copy(differences[i]);
         }
 
-        for(; index < primes.size() && !factored; index++){
+        for(; primes[index] < bound2 && !factored; index++){
             long diff = (primes[index] - primes[index-1]) >> 1; //Set prime to difference in place and get long and div by 2      
             curve.AddPoints(original_point, differences[diff], output, factored);
         }
@@ -95,7 +96,7 @@ void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, s
 }
 
 
-void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
+void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
     
@@ -123,8 +124,9 @@ void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
                 return;
             }
         }
-
-        for(long& prime : primes){
+        
+        for(int index = 0; primes[index] < bound; index++){
+            const long& prime = primes[index];
             if(factored)
                 break;
 
@@ -148,7 +150,7 @@ void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
 }
 
 
-void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
+void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
 
@@ -227,9 +229,9 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, s
         curve.MultPoints(point_t, multiple);
 
         //Perform stage 2
-        for(int i = bound1-1; index < primes.size() && !factored; i += 2*DIFF_SIZE){
+        for(int i = bound1-1; primes[i] < bound2 && !factored; i += 2*DIFF_SIZE){
             point_r.ComputeXZ(point_r_xz, to_factor);
-            for(; primes[index] <= (i + 2*DIFF_SIZE) && index < primes.size(); index++){ //Check that iteration is correct
+            for(; primes[index] <= (i + 2*DIFF_SIZE); index++){ //Check that iteration is correct
                 int dist = ((primes[index] - i) >> 1) - 1;
                 mpz_sub(diff_x, point_r.x, differences[dist].x);
                 mpz_add(sum_z, point_r.z, differences[dist].z);
@@ -276,22 +278,19 @@ long ChooseBound(mpz_t to_factor){
 }
 
 
-void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm){
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes){
     if(thread_count == 0)
         thread_count = 8;
 
     long B;
     long B2;
     
-    std::vector<long> primes;
     if(algorithm == Weierstrass1 || algorithm == Montgomery1){
         B = ChooseBound(to_factor);
-        SieveOfEratosthenes(B, primes);
     }
     else{
-        B = ChooseBound(to_factor);
-        B2 = B*100;
-        SieveOfEratosthenes(B2, primes);
+        B = ChooseBound(to_factor)*20;
+        B2 = B*30;
         if(B < 260){
             B = 260;
             B2 = B * 100;
