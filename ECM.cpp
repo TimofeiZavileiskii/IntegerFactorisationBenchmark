@@ -10,7 +10,7 @@
 #include <thread>
 
 
-void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
+void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, StatsEcm* stats, int index){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
     
@@ -21,7 +21,7 @@ void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
     
     while(!factored)
     {
-        curves_tried++;
+        stats->AddCurveCount(index);
         int outcome = curve.Initialise(random_state, point, to_factor, output);
         if(outcome == 0)
             continue;
@@ -45,7 +45,7 @@ void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
 }
 
 
-void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
+void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, StatsEcm* stats, int index){
     const int DIFF_COUNT = 80;
     
     gmp_randstate_t random_state;
@@ -56,10 +56,11 @@ void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
     WeistrassCurve curve(to_factor);
     WeistrassPoint original_point, point;
     WeistrassPoint differences[DIFF_COUNT];
+    stats->RunStart(bound1, bound2);
     
     while(!factored)
     {
-        curves_tried++;
+        stats->AddCurveCount(index);
         int outcome = curve.Initialise(random_state, point, to_factor, output);
         if(outcome == 0)
             continue;
@@ -96,7 +97,7 @@ void EcmJobWeisDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
 }
 
 
-void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, int& curves_tried){
+void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, StatsEcm* stats, int index){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
     
@@ -109,7 +110,7 @@ void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
     mpz_sub_ui(random_bound, random_bound, 7);
     while(!factored)
     {   
-        curves_tried += 1;
+        stats->AddCurveCount(index);
         //Randomly select theta
         mpz_urandomm(theta, random_state, random_bound);
         mpz_add_ui(theta, theta, 6);
@@ -149,12 +150,10 @@ void EcmJobMontMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored,
     mpz_clears(theta, random_bound, gcd, NULL);
 }
 
-
-void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, int& curves_tried){
+void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound1, long bound2, StatsEcm* stats, int index){
     gmp_randstate_t random_state;
     initialise_rstate(random_state, starting_seed);
 
-    
     MontgomeryCurve curve(to_factor);
     long e, multiple;
     mpz_t theta, random_bound, gcd, product, point_r_xz, diff_x, sum_z;
@@ -174,7 +173,7 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
 
     while(!factored)
     {   
-        curves_tried += 1;
+        
         //Randomly select theta
         mpz_urandomm(theta, random_state, random_bound);
         mpz_add_ui(theta, theta, 6);
@@ -187,6 +186,7 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
         }
 
         //stage 1
+        stats->StartTimingS1(index);
         int index;
         for(index = 0; primes[index] < bound1 && !factored; index++){
             int exponent = log_base(bound1, primes[index]);
@@ -206,6 +206,8 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
             continue;
         }
 
+        stats->EndTimingS1(index);
+       
         //initialise array of differences
         point.Copy(differences[0]);
         curve.DoublePoint(differences[0]);
@@ -227,7 +229,7 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
         curve.MultPoints(point_r, multiple);
         multiple -= 2*DIFF_SIZE;
         curve.MultPoints(point_t, multiple);
-
+        stats->StartTimingS2(index);
         //Perform stage 2
         for(int i = bound1-1; primes[i] < bound2 && !factored; i += 2*DIFF_SIZE){
             point_r.ComputeXZ(point_r_xz, to_factor);
@@ -257,6 +259,8 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
             //std::cout << "Factored in stage 2\n";
             factored = true;
         }
+        stats->EndTimingS2(index);
+        stats->AddCurveCount(index);
     }
 
     for(int i = 0; i < DIFF_SIZE; i++){ 
@@ -278,12 +282,12 @@ long ChooseBound(mpz_t to_factor){
 }
 
 
-void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes){
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes, StatsEcm* stats){
     if(thread_count == 0)
         thread_count = 8;
 
-    long B;
-    long B2;
+    long B = 0;
+    long B2 = 0;
     
     if(algorithm == Weierstrass1 || algorithm == Montgomery1){
         B = ChooseBound(to_factor);
@@ -296,57 +300,51 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm
             B2 = B * 100;
         }
     }
-    
+
+    stats->RunStart(B, B2);
     volatile bool factored = false;
-    int sum = 0;
+
     if(thread_count == 1){
         long seed = rand();
         switch (algorithm)
             {
             case Weierstrass1:
-                EcmJobWeisMonostage(output, to_factor, factored, primes, seed, B, sum);
+                EcmJobWeisMonostage(output, to_factor, factored, primes, seed, B, stats, 0);
                 break;
             case Montgomery1:
-                EcmJobMontMonostage(output, to_factor, factored, primes, seed, B, sum);
+                EcmJobMontMonostage(output, to_factor, factored, primes, seed, B, stats, 0);
                 break;
             case Weierstrass2:
-                EcmJobWeisDistage(output, to_factor, factored, primes, seed, B, B2, sum);
+                EcmJobWeisDistage(output, to_factor, factored, primes, seed, B, B2, stats, 0);
                 break;
             case Montgomery2:
-                EcmJobMontDistage(output, to_factor, factored, primes, seed, B, B2, sum);
+                EcmJobMontDistage(output, to_factor, factored, primes, seed, B, B2, stats, 0);
                 break;
             }
     }
     else{
         std::vector<std::thread> workers = std::vector<std::thread>(); 
-        int* curve_nums = new int[thread_count];
         for(int i = 0; i < thread_count; i++){
             long random_seed = rand();
-            curve_nums[i] = 0;
             switch (algorithm)
             {
             case Weierstrass1:
-                workers.emplace_back(std::thread(EcmJobWeisMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, std::ref(curve_nums[i])));
+                workers.emplace_back(std::thread(EcmJobWeisMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, stats, i));
                 break;
             case Montgomery1:
-                workers.emplace_back(std::thread(EcmJobMontMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, std::ref(curve_nums[i])));
+                workers.emplace_back(std::thread(EcmJobMontMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, stats, i));
                 break;
             case Weierstrass2:
-                workers.emplace_back(std::thread(EcmJobWeisDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, std::ref(curve_nums[i])));
+                workers.emplace_back(std::thread(EcmJobWeisDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, stats, i));
                 break;
             case Montgomery2:
-                workers.emplace_back(std::thread(EcmJobMontDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, std::ref(curve_nums[i])));
+                workers.emplace_back(std::thread(EcmJobMontDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, stats, i));
                 break;
             }
         }
         for(std::thread &thread : workers){
             thread.join();
         }
-
-        for(int i = 0; i < thread_count; i++){
-            sum += curve_nums[i];
-        }
-        delete[] curve_nums;
     }
-    std::cout << "Total curve number: " << sum << "\n";
+    stats->RunEnd();
 }

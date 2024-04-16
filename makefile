@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Ofast -I ./extern/cxxopts/include -L/usr/local/cuda/lib64 -flto
+CFLAGS = -Wall -Ofast -g -I ./extern/cxxopts/include -L/usr/local/cuda/lib64 -flto
 INCLUDES = -lgmp -lcudart
 GPU_FLAG = -arch=sm_75 -lgmp
 
@@ -27,8 +27,8 @@ GeneratePrimes.o: GeneratePrimes.cpp GeneratePrimes.h
 	$(CC) $(CFLAGS) -c GeneratePrimes.cpp $(INCLUDES)
 
 
-factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o Utils.o PollardsRhoCuda.o
-	$(CC) $(CFLAGS) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o PollardsRhoCuda.o TrialDivisionCuda.o $(INCLUDES)
+factorise_integers: IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o TrialDivision.o PollardsP1.o ECM.o TrialDivisionCuda.o Utils.o PollardsRhoCuda.o FactorisationStats.o
+	$(CC) $(CFLAGS) -o factorise_integers IntegerFactorisationBenchmark.o PollardsRho.o TrialDivision.o PollardsP1.o ECM.o Utils.o PollardsRhoCuda.o TrialDivisionCuda.o FactorisationStats.o $(INCLUDES)
 
 
 IntegerFactorisationBenchmark.o: IntegerFactorisationBenchmark.cpp PollardsRho.h TrialDivision.h PollardsRhoCuda.h
@@ -58,6 +58,8 @@ TrialDivision.o: TrialDivision.h TrialDivision.cpp
 TrialDivisionCuda.o: TrialDivisionCuda.h TrialDivisionCuda.cu
 	nvcc $(GPU_FLAG) -c TrialDivisionCuda.cu
 
+FactorisationStats.o: FactorisationStats.cpp FactorisationStats.h
+	$(CC) $(CFLAGS) -c FactorisationStats.cpp $(INCLUDES)
 
 Utils.o: Utils.h Utils.cpp
 	$(CC) $(CFLAGS) -c Utils.cpp $(INCLUDES)

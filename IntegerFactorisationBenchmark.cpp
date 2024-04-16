@@ -13,6 +13,8 @@
 #include "PollardsP1.h"
 #include "TrialDivisionCuda.h"
 #include "TrialDivision.h"
+#include "FactorisationStats.h"
+
 #include <cxxopts.hpp>
 #include <unistd.h>
 #include <cstdlib>
@@ -20,44 +22,103 @@
 #include <set>
 
 
-void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, const std::string& algorithm_name, const std::vector<long>& primes){
+enum AlgorithmType{
+    TRIAL_DIVISION,
+    TRIAL_DIVISION_CUDA,
+    POLLARDS_RHO,
+    POLLARDS_RHO_CUDA,
+    POLLARDS_P1,
+    ECM_WEIERSTRASS,
+    ECM_MONTGOMERY,
+    ECM_WEIERSTRASS2,
+    ECM_MONTGOMERY2,
+    ECM_CUDA
+};
+
+AlgorithmType ParseAlgorithm(const std::string& algorithm_name){
     if(algorithm_name == "trial_division" || algorithm_name == "td"){
-        TrialDivision(output, to_factor, thread_count);
+        return TRIAL_DIVISION;
     }
     else if(algorithm_name == "trial_division_cuda" || algorithm_name == "tdc"){
-        TrialDivisionCuda(output, to_factor, thread_count);
+        return TRIAL_DIVISION_CUDA;
     }
     else if(algorithm_name == "pollards_rho" || algorithm_name == "pr"){
-        PollardsRho(output, to_factor, thread_count);
+        return POLLARDS_RHO;
     }
     else if(algorithm_name == "pollards_rho_cuda" || algorithm_name == "prc"){
-        PollardsRhoCuda(output, to_factor, thread_count);
+        return POLLARDS_RHO_CUDA;
     }
     else if(algorithm_name == "pollards_p1" || algorithm_name == "pp1"){
-        PollardsP1(output, to_factor, thread_count);
+        return POLLARDS_P1;
     }
     else if(algorithm_name == "ecm_weierstrass" || algorithm_name == "ecmw"){
-        Ecm(output, to_factor, thread_count, Weierstrass1, primes);
+        return ECM_WEIERSTRASS;
     }
     else if(algorithm_name == "ecm_montgomery" || algorithm_name == "ecmm"){
-        Ecm(output, to_factor, thread_count, Montgomery1, primes);
+        return ECM_MONTGOMERY;
     }
     else if(algorithm_name == "ecm_weierstrass_2" || algorithm_name == "ecmw2"){
-        Ecm(output, to_factor, thread_count, Weierstrass2, primes);
+        return ECM_WEIERSTRASS2;
     }
     else if(algorithm_name == "ecm_montgomery_2" || algorithm_name == "ecmm2"){
-        Ecm(output, to_factor, thread_count, Montgomery2, primes);
+        return ECM_MONTGOMERY2;
     }
     else if(algorithm_name == "ecm_cuda" || algorithm_name == "ecmc"){
-        //to implement
+        return ECM_CUDA;
     }
     else{
         throw std::logic_error("Algorithm with name " + algorithm_name + " not implemented\n");
     }
 }
 
+FactorisationStats* GetStatsObj(AlgorithmType type, int thread_count){
+    std::string stats_filename = "AlgorithmStats.txt";
 
-float benchmark_number(mpz_t to_factor, int thread_count, const std::string& algorithm, const std::vector<long>& primes){
+    if(type == ECM_WEIERSTRASS || type == ECM_WEIERSTRASS2 || type == ECM_MONTGOMERY || type == ECM_MONTGOMERY2){
+        return new StatsEcm(stats_filename, thread_count);
+    }
+    else{
+        return new FactorisationStats(stats_filename);
+    }
+}
+
+void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, AlgorithmType type, const std::vector<long>& primes, FactorisationStats* stats){
+    switch(type){
+        case TRIAL_DIVISION:
+            TrialDivision(output, to_factor, thread_count);
+            break;
+        case TRIAL_DIVISION_CUDA:
+            TrialDivisionCuda(output, to_factor, thread_count);
+            break;
+        case POLLARDS_RHO:
+            PollardsRho(output, to_factor, thread_count);
+            break;
+        case POLLARDS_RHO_CUDA:
+            PollardsRhoCuda(output, to_factor, thread_count);
+            break;
+        case POLLARDS_P1:
+            PollardsP1(output, to_factor, thread_count);
+            break;
+        case ECM_WEIERSTRASS:
+            Ecm(output, to_factor, thread_count, Weierstrass1, primes, (StatsEcm*)stats);
+            break;
+        case ECM_WEIERSTRASS2:
+            Ecm(output, to_factor, thread_count, Weierstrass2, primes, (StatsEcm*)stats);
+            break;
+        case ECM_MONTGOMERY:
+            Ecm(output, to_factor, thread_count, Montgomery1, primes, (StatsEcm*)stats);
+            break;
+        case ECM_MONTGOMERY2:
+            Ecm(output, to_factor, thread_count, Montgomery2, primes, (StatsEcm*)stats);
+            break;
+        case ECM_CUDA:
+            //not implemented
+            break;
+    }
+}
+
+
+float benchmark_number(mpz_t to_factor, int thread_count, AlgorithmType algorithm_type, const std::vector<long>& primes, FactorisationStats* stats){
     mpz_t factor, other_factor, remainder;
     mpz_inits(factor, other_factor, remainder, NULL);
 
@@ -66,7 +127,7 @@ float benchmark_number(mpz_t to_factor, int thread_count, const std::string& alg
     std::cout << std::endl;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    run_algorithm(factor, to_factor, thread_count, algorithm, primes);
+    run_algorithm(factor, to_factor, thread_count, algorithm_type, primes, stats);
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<float> time = end_time - start_time;
@@ -100,12 +161,14 @@ float benchmark_number(mpz_t to_factor, int thread_count, const std::string& alg
 
     std::cout << "Time spent: " << time.count() << " s" << std::endl;
     
+    stats->OutputExtraStatsNumber();
+
     mpz_clears(factor, other_factor, remainder, NULL);
 
     return time.count();
 }
 
-void manual_input(const std::string& algorithm_name, int thread_num, const std::vector<long>& primes){
+void manual_input(AlgorithmType type, int thread_num, const std::vector<long>& primes, FactorisationStats* stats){
     mpz_t to_factor;
     mpz_inits(to_factor, NULL);
     bool to_continue = true;
@@ -116,7 +179,7 @@ void manual_input(const std::string& algorithm_name, int thread_num, const std::
         std::cout << "Enter number to factor:\n";
         mpz_inp_str(to_factor, NULL, 10);
 
-        benchmark_number(to_factor, thread_num, algorithm_name, primes);
+        benchmark_number(to_factor, thread_num, type, primes, stats);
 
         std::cout << "Continue? (yes/y)?\n";
         std::cin >> response;
@@ -221,7 +284,7 @@ void signal_handler(int signum){
 }
 
 
-void factorise_benchmark(const std::string& factorisation_algorithm, int thread_num, int to_factorise_count, int rseed, const std::vector<long>& primes){
+void factorise_benchmark(AlgorithmType factorisation_algorithm, int thread_num, int to_factorise_count, int rseed, const std::vector<long>& primes, FactorisationStats* stats){
     std::vector<int> bit_sizes;
     
     std::string benchmark_name = "rsa_numbers.csv";
@@ -258,7 +321,7 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
             std::getline(ss, substr, ',');
 
             mpz_set_str(rsa_num, substr.c_str(), 10);
-            times_for_bitsize.push_back(benchmark_number(rsa_num, thread_num, factorisation_algorithm, primes));
+            times_for_bitsize.push_back(benchmark_number(rsa_num, thread_num, factorisation_algorithm, primes, stats));
             count++;
             write_entry(times_for_bitsize[times_for_bitsize.size()-1], ",", results_path);
             if(count > max_count){
@@ -269,6 +332,7 @@ void factorise_benchmark(const std::string& factorisation_algorithm, int thread_
         float average, variance, std;
         compute_stats(times_for_bitsize, average, variance, std);
         std::cout << "------------------------- Bit Size: " << bit_size << " Average Time: " << average << std::endl;
+        stats->OutputStatsAverage();
 
         write_entry(average, ",", results_path);
         write_entry(std, "\n", results_path);
@@ -335,6 +399,8 @@ int main(int argc, char *argv[]){
         seed = time(NULL);
     }
     srand(seed);
+
+    AlgorithmType algorithm_type = ParseAlgorithm(factorisation_algorithm);
     
     std::vector<long> prime_table;
 
@@ -343,13 +409,16 @@ int main(int argc, char *argv[]){
     SieveOfEratosthenes(prime_bound, prime_table);
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> time = end_time - start_time;
-    std::cout << "Finished constructing the prime number table\n It contains " << prime_table.size() << " primes, time taken: " << time.count() << "s\n";
+    std::cout << "Finished constructing the prime number table\nIt contains " << prime_table.size() << " primes, time taken: " << time.count() << "s\n";
+
+    FactorisationStats* stats;
+    stats = GetStatsObj(algorithm_type, thread_number);
 
     if(manual_mode){
-        manual_input(factorisation_algorithm, thread_number, prime_table);
+        manual_input(algorithm_type, thread_number, prime_table, stats);
     }
     else{
-        factorise_benchmark(factorisation_algorithm, thread_number, count, seed, prime_table);
+        factorise_benchmark(algorithm_type, thread_number, count, seed, prime_table, stats);
     }
 
     std::cout << "End of program!\n";

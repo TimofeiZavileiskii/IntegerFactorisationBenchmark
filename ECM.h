@@ -2,6 +2,7 @@
 #include "gmp.h"
 #include "gmpxx.h"
 #include <vector>
+#include "FactorisationStats.h"
 
 enum EcmAlgorithm{
     Montgomery1,
@@ -11,4 +12,4 @@ enum EcmAlgorithm{
 };
 
 
-void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes);
+void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm, const std::vector<long>& primes, StatsEcm* stats);
