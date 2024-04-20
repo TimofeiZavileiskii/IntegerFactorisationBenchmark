@@ -8,6 +8,8 @@
 #include <cmath>
 #include <random>
 #include <thread>
+#include <fstream>
+#include <sstream>
 
 
 void EcmJobWeisMonostage(mpz_t output, mpz_t to_factor, volatile bool& factored, const std::vector<long>& primes, long starting_seed, long bound, StatsEcm* stats, int index){
@@ -270,15 +272,64 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
 }
 
 
-long ChooseBound(mpz_t to_factor){
+long ChooseBoundDefault(mpz_t to_factor){
     double to_factor_d = mpz_get_d(to_factor);
     double smallest_factor = sqrt(to_factor_d);
     double log_smallest_factor = log(smallest_factor);
     double bound = std::exp((sqrt(2.0))/2.0 * sqrt(log(log_smallest_factor)*log_smallest_factor));
     std::cout << "Bound is " << bound << "\n";
     long B = bound;
-    B -= B & 1;
     return B;
+}
+
+
+void ChooseBoundsTable(long& bound, long& bound2, mpz_t to_factor, int offset){
+    std::string filename = "bounds.txt";
+
+    int bit_size = log2(mpz_get_d(to_factor)) - offset;
+
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Failed to open the file\n";
+        throw std::logic_error("Failed to open file with bounds");
+    }
+
+    std::string line;
+    double bound_d, bound2_d;
+
+    std::getline(file, line);
+    int curr_bit_size = std::stoi(line);
+
+    while (std::getline(file, line) && curr_bit_size >= bit_size) {
+        std::istringstream iss(line);
+        iss >> bound_d >> bound2_d;
+        curr_bit_size++;
+    }
+
+    file.close();
+}
+
+void ChooseBounds(long& B1, long& B2, mpz_t to_factor, BoundChoice choice, int offset){
+    
+    switch (choice)
+    {
+    case DEFAULT_BOUNDS:
+        B1 = ChooseBoundDefault(to_factor);
+        B2 = B1 * 100;
+        break;
+    case TABLE_BOUNDS:
+        ChooseBoundsTable(B1, B2, to_factor, offset);
+        break;
+    case GPU_TABLE_BOUNDS:
+        std::logic_error("The bound choice is not implemented");
+        break;
+    default:
+        std::logic_error("The bound choice is not implemented");
+        break;
+    }
+
+    B1 -= B1 & 1;
+    B2 -= B2 & 1;
 }
 
 
@@ -286,22 +337,17 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm
     if(thread_count == 0)
         thread_count = 8;
 
-    long B = 0;
+    long B1 = 0;
     long B2 = 0;
-    
-    if(algorithm == Weierstrass1 || algorithm == Montgomery1){
-        B = ChooseBound(to_factor);
-    }
-    else{
-        B = ChooseBound(to_factor)*20;
-        B2 = B*30;
-        if(B < 260){
-            B = 260;
-            B2 = B * 100;
-        }
-    }
+    int offset = 0;
 
-    stats->RunStart(B, B2);
+    if(algorithm == Montgomery1 || algorithm == Montgomery2){
+        offset = 4;
+    }
+    
+    ChooseBounds(B1, B2, to_factor, DEFAULT_BOUNDS, offset);
+
+    stats->RunStart(B1, B2);
     volatile bool factored = false;
 
     if(thread_count == 1){
@@ -309,16 +355,16 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm
         switch (algorithm)
             {
             case Weierstrass1:
-                EcmJobWeisMonostage(output, to_factor, factored, primes, seed, B, stats, 0);
+                EcmJobWeisMonostage(output, to_factor, factored, primes, seed, B1, stats, 0);
                 break;
             case Montgomery1:
-                EcmJobMontMonostage(output, to_factor, factored, primes, seed, B, stats, 0);
+                EcmJobMontMonostage(output, to_factor, factored, primes, seed, B1, stats, 0);
                 break;
             case Weierstrass2:
-                EcmJobWeisDistage(output, to_factor, factored, primes, seed, B, B2, stats, 0);
+                EcmJobWeisDistage(output, to_factor, factored, primes, seed, B1, B2, stats, 0);
                 break;
             case Montgomery2:
-                EcmJobMontDistage(output, to_factor, factored, primes, seed, B, B2, stats, 0);
+                EcmJobMontDistage(output, to_factor, factored, primes, seed, B1, B2, stats, 0);
                 break;
             }
     }
@@ -329,16 +375,16 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm
             switch (algorithm)
             {
             case Weierstrass1:
-                workers.emplace_back(std::thread(EcmJobWeisMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, stats, i));
+                workers.emplace_back(std::thread(EcmJobWeisMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B1, stats, i));
                 break;
             case Montgomery1:
-                workers.emplace_back(std::thread(EcmJobMontMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, stats, i));
+                workers.emplace_back(std::thread(EcmJobMontMonostage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B1, stats, i));
                 break;
             case Weierstrass2:
-                workers.emplace_back(std::thread(EcmJobWeisDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, stats, i));
+                workers.emplace_back(std::thread(EcmJobWeisDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B1, B2, stats, i));
                 break;
             case Montgomery2:
-                workers.emplace_back(std::thread(EcmJobMontDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B, B2, stats, i));
+                workers.emplace_back(std::thread(EcmJobMontDistage, output, to_factor, std::ref(factored), std::ref(primes), random_seed, B1, B2, stats, i));
                 break;
             }
         }

@@ -10,6 +10,7 @@
 #include "PollardsRhoCuda.h"
 #include "PollardsRho.h"
 #include "ECM.h"
+#include "ECMCuda.h"
 #include "PollardsP1.h"
 #include "TrialDivisionCuda.h"
 #include "TrialDivision.h"
@@ -112,7 +113,7 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, AlgorithmTyp
             Ecm(output, to_factor, thread_count, Montgomery2, primes, (StatsEcm*)stats);
             break;
         case ECM_CUDA:
-            //not implemented
+            EcmCuda(output, to_factor, thread_count, primes);
             break;
     }
 }
@@ -384,7 +385,7 @@ int main(int argc, char *argv[]){
         ("c,count", "Cout of integers to factorise before closing the program", cxxopts::value<int>()->default_value("1000"))
         ("s,seed", "Random seed, chosen to be system time if left empty", cxxopts::value<int>()->default_value("-1"))
         ("t,thread_number", "Number of threads to be used for the algorithm", cxxopts::value<int>()->default_value("0"))
-        ("p,prime_bound", "Up to which bound prime table should be generated", cxxopts::value<long>()->default_value("100000000")); //Set to 0, signifying default number of threads, determined individually for each algorithm 
+        ("p,prime_bound", "Up to which bound prime table should be generated", cxxopts::value<long>()->default_value("50000000")); //Set to 0, signifying default number of threads, determined individually for each algorithm 
 
     auto parsed_arguments = options.parse(argc, argv);
 

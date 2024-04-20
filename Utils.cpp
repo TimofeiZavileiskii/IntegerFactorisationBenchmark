@@ -21,7 +21,7 @@ void inline ZeroBitArray(long index, unsigned char* array) {
 }
 
 void SieveOfEratosthenes(long upperbound, std::vector<long>& primes) {
-    const int max_array_size = 1 << 29;
+    const int max_array_size = 1 << 30;
     long nums_passed = 0;
     long max_array_size_comp = max_array_size;
 

@@ -60,11 +60,11 @@ class MontgomeryCurve{
     private:
     MontgomeryPoint p_copy;
     MontgomeryPoint p_double;
-
-    mpz_t a_2_over_4, cross_1, sqr1, sqr2, c;
-
+    mpz_t cross_1, sqr1, sqr2;
+    
     public:
     //Four is in montgomery space
+    mpz_t a_2_over_4, c;
     MontgomeryParams params;
 
     inline MontgomeryCurve(mpz_t n){

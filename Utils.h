@@ -5,7 +5,9 @@
 #include "gmpxx.h"
 #include <cmath>
 
-# define m_arith 0 //montgomery arithemtic off = 0 on = 1
+#define m_arith 0 //montgomery arithemtic off = 0 on = 1
+
+
 
 bool inline IndexBitArray(long index, unsigned char* array);
 
@@ -18,7 +20,7 @@ void SieveOfEratosthenes(long upperbound, std::vector<long>& primes);
 inline void print_mpz(std::string str, mpz_t n){
     std::cout << str;
     mpz_out_str(NULL, 10, n);
-    std::cout << "\n";
+    std::cout << std::endl;
 }
 
 inline void initialise_rstate(gmp_randstate_t& rstate, long rseed){
