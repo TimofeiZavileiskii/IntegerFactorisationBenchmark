@@ -45,7 +45,7 @@ inline void MontgomerySetup(mpz_t mod, MontgomeryParams& params){
     mpz_set(params.mod, mod);
     params.bit_num = (uint)log2(mpz_get_d(params.mod))+2;
     mpz_set_ui(params.r_mask, 1);
-    mpz_mul_2exp(params.r_mask, params.r_mask,params. bit_num);
+    mpz_mul_2exp(params.r_mask, params.r_mask, params.bit_num);
     mpz_invert(params.n_bar, params.r_mask, params.mod);
     mpz_mul(params.n_bar, params.n_bar, params.r_mask);
     mpz_sub_ui(params.n_bar, params.n_bar, 1);

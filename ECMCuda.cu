@@ -28,24 +28,40 @@ typedef cgbn_env_t<context_t, BITS> env_t;
 __device__ bool ecm_finished = false;
 
 
-typedef struct{
-    env_t::cgbn_t x;
-    env_t::cgbn_t z;
-    env_t::cgbn_t x_sub_z;
-    env_t::cgbn_t x_add_z;
-} PointCuda;
-
-
 class CurveCuda{
     public:
+
+    typedef struct{
+        env_t::cgbn_t x;
+        env_t::cgbn_t z;
+        env_t::cgbn_t x_sub_z;
+        env_t::cgbn_t x_add_z;
+    } PointCuda;
+
+    PointCuda point;
+
     env_t::cgbn_t sqr1, sqr2, a_2_over_4, cross_1;
     env_t::cgbn_t mod, c;
     uint32_t montgomery_param;
 
     PointCuda point_copy;
     PointCuda point_double;
-    
-    __device__ __forceinline__ void ModularMul(env_t& env, env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
+
+    context_t _context;
+    env_t     env;
+    int32_t   _instance;
+
+
+    __device__ __forceinline__ CurveCuda(cgbn_monitor_t monitor, cgbn_error_report_t *report, int32_t instance) : 
+    _context(monitor, report, (uint32_t)instance), env(_context), _instance(instance) {
+    }
+
+
+    __device__ __forceinline__ void InitMont(){
+        montgomery_param = -cgbn_binary_inverse_ui32(env, cgbn_get_ui32(env, mod));
+    }
+
+    __device__ __forceinline__ void ModularMul(env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
         #if m_arith == 1
             cgbn_mont_mul(env, c, a, b, mod, montgomery_param);
         #else
@@ -54,7 +70,7 @@ class CurveCuda{
         #endif
     }
 
-    __device__ __forceinline__ void ModularSqr(env_t& env, env_t::cgbn_t& c, env_t::cgbn_t& a){
+    __device__ __forceinline__ void ModularSqr(env_t::cgbn_t& c, env_t::cgbn_t& a){
         #if m_arith == 1
             cgbn_mont_sqr(env, c, a, mod, montgomery_param);
         #else
@@ -63,7 +79,7 @@ class CurveCuda{
         #endif
     }
 
-    __device__ __forceinline__ void ModularSub(env_t& env, env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
+    __device__ __forceinline__ void ModularSub(env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
         if(cgbn_compare(env, a, b) < 0){
             cgbn_add(env, c, a, mod);
             cgbn_sub(env, c, c, b);
@@ -73,19 +89,19 @@ class CurveCuda{
         }
     }
 
-    __device__ __forceinline__ void ModularAdd(env_t& env, env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
+    __device__ __forceinline__ void ModularAdd(env_t::cgbn_t& c, env_t::cgbn_t& a, env_t::cgbn_t& b){
         cgbn_add(env, c, a, mod);
         if(cgbn_compare(env, c, mod) > 0){
             cgbn_sub(env, c, c, mod); 
         }
     }
 
-    __device__ __forceinline__ void PointComputeDiffCuda(env_t& env, PointCuda& point){
-        ModularSub(env, point.x_sub_z, point.x, point.z);
-        ModularAdd(env, point.x_add_z, point.x, point.z);
+    __device__ __forceinline__ void PointComputeDiffCuda(PointCuda& point){
+        ModularSub(point.x_sub_z, point.x, point.z);
+        ModularAdd(point.x_add_z, point.x, point.z);
     }
 
-    __device__ void CopyPointCuda(env_t& env, PointCuda& point, PointCuda& point_copy){
+    __device__ void CopyPointCuda(PointCuda& point, PointCuda& point_copy){
         cgbn_set(env, point.x, point_copy.x);
         cgbn_set(env, point.z, point_copy.z);
         cgbn_set(env, point.x_add_z, point_copy.x_add_z);
@@ -104,15 +120,15 @@ inline void DoublePoint(CurveCuda& curve, PointCuda& point){
         point.ComputeDiff(params.mod);
 }*/
 
-    __device__ void DoublePointCuda(env_t& env, PointCuda& point){
-        ModularSqr(env, sqr1, point.x_add_z);
-        ModularSqr(env, sqr2, point.x_sub_z);
-        ModularSub(env, cross_1, sqr1, sqr2);
-        ModularMul(env, point.x, sqr1, sqr2);
-        ModularMul(env, point.z, a_2_over_4, cross_1);
-        ModularAdd(env, point.z, point.z, sqr2);
-        ModularMul(env, point.z, point.z, cross_1);
-        PointComputeDiffCuda(env, point);
+    __device__ void DoublePointCuda(PointCuda& point){
+        ModularSqr(sqr1, point.x_add_z);
+        ModularSqr(sqr2, point.x_sub_z);
+        ModularSub(cross_1, sqr1, sqr2);
+        ModularMul(point.x, sqr1, sqr2);
+        ModularMul(point.z, a_2_over_4, cross_1);
+        ModularAdd(point.z, point.z, sqr2);
+        ModularMul(point.z, point.z, cross_1);
+        PointComputeDiffCuda(point);
     }
 
     /*
@@ -140,27 +156,27 @@ inline void DoublePoint(CurveCuda& curve, PointCuda& point){
     }
 */
 
-    __device__ void AddPointsCuda(env_t& env, PointCuda& point, PointCuda& to_add, PointCuda& diff){
+    __device__ void AddPointsCuda(PointCuda& point, PointCuda& to_add, PointCuda& diff){
         if((cgbn_compare_ui32(env, point.x, 0) == 0) && (cgbn_compare_ui32(env, point.z, 0) == 0)){
             return;
         }
         if((cgbn_compare_ui32(env, to_add.x, 0) == 0) && (cgbn_compare_ui32(env, to_add.z, 0) == 0)){
-            CopyPointCuda(env, point, to_add);
+            CopyPointCuda(point, to_add);
             return;
         }
 
         #define cross_2 sqr1
-        ModularMul(env, cross_1, point.x_sub_z, to_add.x_add_z);
-        ModularMul(env, cross_2, point.x_add_z, to_add.x_sub_z);
-        ModularAdd(env, to_add.x, cross_1, cross_2);
+        ModularMul(cross_1, point.x_sub_z, to_add.x_add_z);
+        ModularMul(cross_2, point.x_add_z, to_add.x_sub_z);
+        ModularAdd(to_add.x, cross_1, cross_2);
 
-        ModularSqr(env, to_add.x, to_add.x);
-        ModularMul(env, to_add.x, to_add.x, diff.z);
+        ModularSqr(to_add.x, to_add.x);
+        ModularMul(to_add.x, to_add.x, diff.z);
 
-        ModularSub(env, to_add.z, cross_1, cross_2);
-        ModularSqr(env, to_add.z, to_add.z);
-        ModularMul(env, to_add.z, to_add.z, diff.x);
-        PointComputeDiffCuda(env, to_add);
+        ModularSub(to_add.z, cross_1, cross_2);
+        ModularSqr(to_add.z, to_add.z);
+        ModularMul(to_add.z, to_add.z, diff.x);
+        PointComputeDiffCuda(to_add);
         #undef cross_2
     }
 
@@ -206,7 +222,7 @@ inline void DoublePoint(CurveCuda& curve, PointCuda& point){
     }
     */
 
-    __device__ __forceinline__ void MultPointCuda(env_t& env, PointCuda& point, long multiple){
+    __device__ __forceinline__ void MultPointCuda(long multiple){
         if(multiple == 0){
             cgbn_set_ui32(env, point.x, 0);
             cgbn_set_ui32(env, point.z, 0);
@@ -216,35 +232,35 @@ inline void DoublePoint(CurveCuda& curve, PointCuda& point){
             return;
         }
         if(multiple == 2){
-            DoublePointCuda(env, point);
+            DoublePointCuda(point);
             return;
         }
 
-        CopyPointCuda(env, point, point_copy);
-        CopyPointCuda(env, point, point_double);
-        DoublePointCuda(env, point_double);
+        CopyPointCuda(point, point_copy);
+        CopyPointCuda(point, point_double);
+        DoublePointCuda(point_double);
 
         int bit_count = BIT_COUNT_LONG(multiple);
 
         for(int i = bit_count-2; i > 0; i--){
             if(TEST_BIT(multiple, i)){
-                AddPointsCuda(env, point_double, point_copy, point);
-                DoublePointCuda(env, point_double);
+                AddPointsCuda(point_double, point_copy, point);
+                DoublePointCuda(point_double);
             }
             else{
-                AddPointsCuda(env, point_copy, point_double, point);
-                DoublePointCuda(env, point_copy);
+                AddPointsCuda(point_copy, point_double, point);
+                DoublePointCuda(point_copy);
             }
             
         }
 
         if(TEST_BIT(multiple, 0)){
-            AddPointsCuda(env, point_double, point_copy, point);
-            CopyPointCuda(env, point_copy, point);
+            AddPointsCuda(point_double, point_copy, point);
+            CopyPointCuda(point_copy, point);
         }
         else{
-            DoublePointCuda(env, point_copy);
-            CopyPointCuda(env, point_copy, point);
+            DoublePointCuda(point_copy);
+            CopyPointCuda(point_copy, point);
         }
     }
 };
@@ -259,26 +275,21 @@ typedef struct{
 } EcmStart;
 
 
-__global__ void EcmKernel(EcmStart* start_instances, int inst_size, long* primes, cgbn_mem_t<BITS>* mod_host, int prime_count, long B1) {
+__global__ void EcmKernel(cgbn_error_report_t *report, EcmStart* start_instances, int inst_size, long* primes, cgbn_mem_t<BITS>* mod_host, int prime_count, long B1) {
     uint32_t instance = (blockIdx.x*blockDim.x + threadIdx.x) / TPI;
     if(instance >= inst_size){
         return;
     }
 
-    context_t      bn_context(cgbn_no_checks);
-    env_t          bn_env(bn_context.env<env_t>());
     env_t::cgbn_t gcd;
 
-    CurveCuda curve;
-    PointCuda point;
+    CurveCuda curve(cgbn_report_monitor, report, instance);
 
-    cgbn_load(bn_env, curve.mod, mod_host);
-    cgbn_load(bn_env, curve.c, &(start_instances[instance].c));
-    cgbn_load(bn_env, point.x, &(start_instances[instance].x));
-    cgbn_load(bn_env, point.z, &(start_instances[instance].z));
-    cgbn_load(bn_env, curve.a_2_over_4, &(start_instances[instance].a_2_over_4));
-
-    curve.montgomery_param = -cgbn_binary_inverse_ui32(bn_env, cgbn_get_ui32(bn_env, curve.mod));
+    cgbn_load(curve.env, curve.mod, mod_host);
+    cgbn_load(curve.env, curve.c, &(start_instances[instance].c));
+    cgbn_load(curve.env, curve.point.x, &(start_instances[instance].x));
+    cgbn_load(curve.env, curve.point.z, &(start_instances[instance].z));
+    cgbn_load(curve.env, curve.a_2_over_4, &(start_instances[instance].a_2_over_4));
 
     long e;
 
@@ -287,17 +298,17 @@ __global__ void EcmKernel(EcmStart* start_instances, int inst_size, long* primes
         float prime = (float)primes[index];
         int repeat = (int)(log_B1/logf(prime));
         for(int rep = 0; rep < repeat; rep++){
-            curve.MultPointCuda(bn_env, point, prime);}
+            curve.MultPointCuda(prime);}
     }
 
-    cgbn_gcd(bn_env, gcd, curve.mod, point.z);
-    if(cgbn_compare_ui32(bn_env, gcd, 1) > 0 && cgbn_compare(bn_env, gcd, curve.mod) < 0){
-        
+    cgbn_gcd(curve.env, gcd, curve.mod, curve.point.z);
+    if(cgbn_compare_ui32(curve.env, gcd, 1) > 0 && cgbn_compare(curve.env, gcd, curve.mod) < 0){
+        if(threadIdx.x % TPI == 0){
+        printf("Factored! \n");}
         start_instances[instance].is_factored = true;
-        cgbn_store(bn_env, &start_instances[instance].x, point.x);
-        cgbn_store(bn_env, &start_instances[instance].z, point.z);
-        cgbn_store(bn_env, &start_instances[instance].c, gcd);
-        __threadfence();
+        cgbn_store(curve.env, &start_instances[instance].x, curve.point.x);
+        cgbn_store(curve.env, &start_instances[instance].z, curve.point.z);
+        cgbn_store(curve.env, &start_instances[instance].c, gcd);
         ecm_finished = true;
     }
 }
@@ -315,7 +326,8 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
     const bool initial_factored = false;
     
     long B1, B2;
-    
+    cgbn_error_report_t *report;
+
     ChooseBounds(B1, B2, to_factor, DEFAULT_BOUNDS, 4); //Offset of 4 due to the use of the special parametirisation with theta
     EcmStart instance_local[problem_instances];
     EcmStart* instance_cuda;
@@ -340,9 +352,12 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
     auto it = std::lower_bound(primes.begin(), primes.end(), B1);
     int copy_primes_count = std::distance(primes.begin(), it);
 
+    from_mpz(to_factor, mod_local._limbs, BITS/32);
+
     CUDA_CHECK(cudaMalloc(&instance_cuda, problem_instances*sizeof(EcmStart)));
     CUDA_CHECK(cudaMalloc(&primes_cuda, copy_primes_count*sizeof(long)));
     CUDA_CHECK(cudaMalloc(&mod_cuda, sizeof(cgbn_mem_t<BITS>)));
+    CUDA_CHECK(cgbn_error_report_alloc(&report));
 
     while(!is_factored){
         for(int i = 0; i < problem_instances; i++){
@@ -365,7 +380,6 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
             from_mpz(curve.c, instance_local[i].c._limbs, BITS/32);
             from_mpz(curve.a_2_over_4, instance_local[i].a_2_over_4._limbs, BITS/32);
 
-
             instance_local[i].is_factored = false;
         }
 
@@ -375,8 +389,10 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
         CUDA_CHECK(cudaMemcpy(mod_cuda, &mod_local, sizeof(cgbn_mem_t<BITS>), cudaMemcpyHostToDevice));
 
         std::cout << "Block num " << block_num << " block size " << block_size << "\n";
-        EcmKernel<<<block_num, block_size>>>(instance_cuda, inst_size, primes_cuda, mod_cuda, copy_primes_count, B1);
-        cudaDeviceSynchronize(); // Wait for kernel to finish execution
+        EcmKernel<<<block_num, block_size>>>(report, instance_cuda, inst_size, primes_cuda, mod_cuda, copy_primes_count, B1);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CGBN_CHECK(report);
+
         cudaMemcpy(&instance_local, instance_cuda, problem_instances*sizeof(EcmStart), cudaMemcpyDeviceToHost);
        // std::cout << "Memory copied" << std::endl;
         for(int i = 0; i < problem_instances; i++){
