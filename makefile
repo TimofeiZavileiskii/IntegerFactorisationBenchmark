@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Ofast -g -I ./extern/cxxopts/include -L/usr/local/cuda/lib64
+CFLAGS = -Wall -Ofast -g -I ./extern/cxxopts/include -L/usr/local/cuda/lib64 -flto
 INCLUDES = -lgmp -lcudart
 GPU_FLAG = -arch=sm_75 -lgmp -O3
 

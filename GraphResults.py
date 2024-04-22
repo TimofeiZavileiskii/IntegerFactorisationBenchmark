@@ -10,13 +10,13 @@ def get_coordinates(benchmark_name):
     with open(benchmark_name, 'r') as csv_file:
         reader = csv.reader(csv_file)
         for row in reader:
-            row_b = [int(row[0])]
-            row_f = [float(i) for i in row[1:]]
-            row = row_b + row_f
-            bit_sizes.append(row[0])
-            bit_sizes_repeated = bit_sizes_repeated + ([row[0]] * len(row[1:]))
-            times = times + row[1:]
-            time_averages.append(sum(row[1:])/len(row[1:]))
+            if len(row) < 3:
+                continue
+
+            bit_size = [int(row[0])]
+            average_time = [float(row[-2])]
+            bit_sizes.append(bit_size)
+            time_averages.append(average_time)
 
     return (bit_sizes, time_averages) 
 
@@ -33,18 +33,18 @@ def plot_benchmark(benchmark_names, benchmark_titles, plot_title, filename):
     for xs, ys, title in zip(bit_sizes, times_averages, benchmark_titles):
         plt.plot(xs, ys, label=title)
 
-    plt.xscale('log', base=2)
+    plt.yscale('log', base=2)
 
     plt.xlabel('Bit Sizes')
     plt.ylabel('Average Time (s)')
 
     plt.title(plot_title)
     plt.legend()
-    plt.save(filename)
+    plt.savefig(filename)
 
 
 def main():
-    benchmark_names = ["benchmark_results_td_1.csv", "benchmark_results_td_8.csv", "benchmark_results_tdc.csv"]
+    benchmark_names = ["benchmark_results_td_1.csv", "benchmark_results_td_2.csv", "benchmark_results_td_8.csv", "benchmark_results_tdc_2048.csv"]
     benchmark_titles = ["1 thread", "2 thread", "8 thread", "GPU"]
     plot_title = "Trial Division (C++)"
     filename = "td_cpp_graph.png"
