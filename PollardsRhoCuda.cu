@@ -5,7 +5,7 @@
 #include "utility/cpu_support.h"
 #include "utility/gpu_support.h"
 
-#define TPI 32
+#define TPI 8
 #define BITS 32*8
 
 typedef cgbn_context_t<TPI> context_t;

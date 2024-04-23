@@ -286,7 +286,7 @@ long ChooseBoundDefault(mpz_t to_factor){
 void ChooseBoundsTable(long& bound, long& bound2, mpz_t to_factor, int offset){
     std::string filename = "bounds.txt";
 
-    int bit_size = log2(mpz_get_d(to_factor)) - offset;
+    int bit_size = log2(sqrt(mpz_get_d(to_factor))) - offset;
 
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -300,11 +300,15 @@ void ChooseBoundsTable(long& bound, long& bound2, mpz_t to_factor, int offset){
     std::getline(file, line);
     int curr_bit_size = std::stoi(line);
 
-    while (std::getline(file, line) && curr_bit_size >= bit_size) {
-        std::istringstream iss(line);
-        iss >> bound_d >> bound2_d;
+    while (std::getline(file, line) && curr_bit_size <= bit_size) {
+        std::stringstream iss(line);
+        char comma;
+        iss >> bound_d >> comma >> bound2_d;
         curr_bit_size++;
     }
+
+    bound = bound_d;
+    bound2 = bound2_d;
 
     file.close();
 }
@@ -342,7 +346,7 @@ void Ecm(mpz_t output, mpz_t to_factor, int thread_count, EcmAlgorithm algorithm
     int offset = 0;
 
     if(algorithm == Montgomery1 || algorithm == Montgomery2){
-        offset = 4;
+        offset = 3;
     }
     
     ChooseBounds(B1, B2, to_factor, DEFAULT_BOUNDS, offset);

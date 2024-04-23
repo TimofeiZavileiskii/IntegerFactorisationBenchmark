@@ -15,6 +15,7 @@
 #include "TrialDivisionCuda.h"
 #include "TrialDivision.h"
 #include "FactorisationStats.h"
+#include <pari/pari.h>
 
 #include <cxxopts.hpp>
 #include <unistd.h>
@@ -33,8 +34,10 @@ enum AlgorithmType{
     ECM_MONTGOMERY,
     ECM_WEIERSTRASS2,
     ECM_MONTGOMERY2,
-    ECM_CUDA
+    ECM_CUDA,
+    PARI
 };
+
 
 AlgorithmType ParseAlgorithm(const std::string& algorithm_name){
     if(algorithm_name == "trial_division" || algorithm_name == "td"){
@@ -67,10 +70,14 @@ AlgorithmType ParseAlgorithm(const std::string& algorithm_name){
     else if(algorithm_name == "ecm_cuda" || algorithm_name == "ecmc"){
         return ECM_CUDA;
     }
+    else if(algorithm_name == "pari"){
+        return PARI;
+    }
     else{
         throw std::logic_error("Algorithm with name " + algorithm_name + " not implemented\n");
     }
 }
+
 
 FactorisationStats* GetStatsObj(AlgorithmType type, int thread_count){
     std::string stats_filename = "AlgorithmStats.txt";
@@ -82,6 +89,18 @@ FactorisationStats* GetStatsObj(AlgorithmType type, int thread_count){
         return new FactorisationStats(stats_filename);
     }
 }
+
+
+void PariFactorise(mpz_t output, mpz_t to_factor){
+    char *str_input = mpz_get_str(NULL, 10, to_factor);
+    GEN pari_rsa = gp_read_str(str_input);
+    GEN factors = Z_factor(pari_rsa);
+    GEN factors_ints = gel(factors, 1);
+    GEN factor1 = gel(factors_ints, 1);
+    char *str_output = GENtostr(factor1);
+    mpz_set_str(output, str_output, 10);
+}
+
 
 void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, AlgorithmType type, const std::vector<long>& primes, FactorisationStats* stats){
     switch(type){
@@ -115,7 +134,16 @@ void run_algorithm(mpz_t output, mpz_t to_factor, int thread_count, AlgorithmTyp
         case ECM_CUDA:
             EcmCuda(output, to_factor, thread_count, primes);
             break;
+        case PARI:
+            PariFactorise(output, to_factor);
+            break;
     }
+}
+
+
+void PariSetup(){
+    ulong prime_limit = 1<<30;
+    pari_init(5000000000, prime_limit);
 }
 
 
@@ -403,6 +431,10 @@ int main(int argc, char *argv[]){
 
     AlgorithmType algorithm_type = ParseAlgorithm(factorisation_algorithm);
     
+    if(algorithm_type == PARI){
+        PariSetup();
+    }
+
     std::vector<long> prime_table;
 
     std::cout << "Start computing the prime number table\n";
