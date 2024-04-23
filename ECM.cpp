@@ -232,6 +232,7 @@ void EcmJobMontDistage(mpz_t output, mpz_t to_factor, volatile bool& factored, c
         multiple -= 2*DIFF_SIZE;
         curve.MultPoints(point_t, multiple);
         stats->StartTimingS2(index);
+        
         //Perform stage 2
         for(int i = bound1-1; primes[i] < bound2 && !factored; i += 2*DIFF_SIZE){
             point_r.ComputeXZ(point_r_xz, to_factor);

@@ -193,7 +193,7 @@ class MontgomeryCurve{
         int bit_count = (int)log2((double)multiple)+1;
 
         for(int i = bit_count-2; i > 0; i--){
-            if(test_bit(multiple, i) == 1){
+            if(test_bit(multiple, i)){
                 AddPoints(p_double, p_copy, point);
                 DoublePoint(p_double);
             }
@@ -202,7 +202,7 @@ class MontgomeryCurve{
                 DoublePoint(p_copy);
             }
         }
-        if(test_bit(multiple, 0) == 1){
+        if(test_bit(multiple, 0)){
             AddPoints(p_double, p_copy, point);
             p_copy.Copy(point);
         }
