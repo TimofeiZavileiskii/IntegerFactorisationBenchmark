@@ -5,7 +5,7 @@ The project is designed to be build on Linux. Debian native installation and Ubu
 For building gcc, g++, and make are used
 
 
-The project has several dependencies: GMP, Pari/GP, Nvidia CUDA, Python uses matplotlib, scipy, sagemath
+The project has several dependencies: GMP, Pari/GP, Nvidia CUDA, Python uses matplotlib, scipy, sagemath, Galois, bitarray, Sympy
 
 -GMP
 
@@ -55,10 +55,3 @@ then ~/.bashrc should be modified by appending following lines in the end:
 export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}
 export LD_LIBRARY_PATH=/usr/local/cuda/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 export LD_LIBRARY_PATH=/usr/local/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-
-Python dependencies can be installed with apt with the following commands:
-
-sudo apt install python3-matplotlib
-sudo apt install python3-scipy
-sudo apt install python3-sage

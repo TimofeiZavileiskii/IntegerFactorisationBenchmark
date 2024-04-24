@@ -86,7 +86,7 @@ class CurveCuda{
     }
 
     __device__ __forceinline__ void ModularAdd(env_t::cgbn_t& c, const env_t::cgbn_t& a, const env_t::cgbn_t& b){
-        cgbn_add(_env, c, a, mod);
+        cgbn_add(_env, c, a, b);
         if(cgbn_compare(_env, c, mod) > 0){
             cgbn_sub(_env, c, c, mod); 
         }
@@ -97,7 +97,7 @@ class CurveCuda{
         ModularAdd(point.x_add_z, point.x, point.z);
     }
 
-    __device__ void CopyPointCuda(const PointCuda& point, PointCuda& point_copy){
+    __device__ __forceinline__ void CopyPointCuda(const PointCuda& point, PointCuda& point_copy){
         cgbn_set(_env, point_copy.x, point.x);
         cgbn_set(_env, point_copy.z, point.z);
         cgbn_set(_env, point_copy.x_add_z, point.x_add_z);
@@ -279,6 +279,11 @@ __global__ void EcmKernel(cgbn_error_report_t *report, EcmStart* start_instances
     cgbn_load(curve._env, curve.point_curr.z, &(start_instances[instance].z));
     cgbn_load(curve._env, curve.a_2_over_4, &(start_instances[instance].a_2_over_4));
 
+    u_int32_t sx = cgbn_get_ui32(curve._env, curve.point_curr.x);
+    u_int32_t sz = cgbn_get_ui32(curve._env, curve.point_curr.z);
+    u_int32_t sc = cgbn_get_ui32(curve._env, curve.c);
+    u_int32_t s2 = cgbn_get_ui32(curve._env, curve.a_2_over_4);
+
     curve.InitMont();
     curve.PointComputeDiffCuda(curve.point_curr);
 
@@ -379,7 +384,7 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
         CUDA_CHECK(cudaMemcpy(primes_cuda, primes.data(),  copy_primes_count*sizeof(long), cudaMemcpyHostToDevice));
         CUDA_CHECK(cudaMemcpy(mod_cuda, &mod_local, sizeof(cgbn_mem_t<BITS>), cudaMemcpyHostToDevice));
 
-        std::cout << "Block num " << block_num << " block size " << block_size << "\n";
+       // std::cout << "Block num " << block_num << " block size " << block_size << "\n";
         EcmKernel<<<block_num, block_size>>>(report, instance_cuda, inst_size, primes_cuda, mod_cuda, copy_primes_count, B1);
         CUDA_CHECK(cudaDeviceSynchronize());
         CGBN_CHECK(report);
@@ -397,10 +402,6 @@ void EcmCuda(mpz_t output, mpz_t to_factor, int thread_count, const std::vector<
                  //The result is stored in the c coordinate of the starting point
                 to_mpz(x, instance_local[i].x._limbs, BITS/32);
                 to_mpz(z, instance_local[i].z._limbs, BITS/32);
-                std::cout << "Finished factorising" << std::endl;
-                print_mpz("Output: ", output);
-                print_mpz("Point x:", x);
-                print_mpz("Point z:", z);
                 mpz_clears(x, z, NULL);
                 break;
             }
