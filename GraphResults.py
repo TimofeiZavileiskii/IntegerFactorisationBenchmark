@@ -44,10 +44,10 @@ def plot_benchmark(benchmark_names, benchmark_titles, plot_title, filename):
 
 
 def main():
-    benchmark_names = ["benchmark_results_td_1.csv", "benchmark_results_td_2.csv", "benchmark_results_td_8.csv", "benchmark_results_tdc_2048.csv"]
-    benchmark_titles = ["1 thread", "2 thread", "8 thread", "GPU"]
-    plot_title = "Trial Division (C++)"
-    filename = "td_cpp_graph.png"
+    benchmark_names = ["pr.csv", "ecmw2.csv", "ecmm2.csv", "ecmc.csv"]
+    benchmark_titles = ["Pollard's Rho", "ECM 2 stage Weiestrass", "ECM 2 stage Montgomery", "ECM GPU"]
+    plot_title = "Implementation Demonstration"
+    filename = "impl_dem.png"
     plot_benchmark(benchmark_names, benchmark_titles, plot_title, filename)
 
 
