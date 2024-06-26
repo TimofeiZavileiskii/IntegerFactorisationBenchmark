@@ -1,3 +1,5 @@
+Final Project for Durham University Computer Science.
+
 Repository to benchmark various integer factorisation algorithms
 
 The project is designed to be build on Linux. Debian native installation and Ubuntu on WSL were tested
